@@ -10,6 +10,7 @@
     "dev": "tsx server/index.tsx",
     "build": "tsx script/builds.tsx",
     "start": "node dist/index.cjs",
+    "vercel-build": "vite build",
     "next:dev": "next dev",
     "next:build": "next build",
     "next:start": "next start",
