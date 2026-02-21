@@ -9,9 +9,14 @@ import { insertShopSchema, insertDriverSchema, insertRouteSchema, insertTargetSc
   insertDispatchSchema, insertParcelSchema, insertPaymentSchema,
   insertStockMovementSchema, insertInventorySchema
 } from "@shared/schema";
-import { setupAuth, registerAuthRoutes, ensureAdminUser, isAuthenticated, isAdmin } from "./auth";
+import { setupAuth, registerAuthRoutes, ensureAdminUser, isAuthenticated, isAdmin, hashPassword } from "./auth";
 import { registerAnalyticsRoutes } from "./ai/analytics-routes";
 import { createBackup, getBackupHistory } from "./backup";
+import { db } from "./db";
+import { users } from "@shared/models/auth";
+import { eq } from "drizzle-orm";
+import { writeFileSync, readFileSync, existsSync } from "fs";
+import { join } from "path";
 
 // ============ PAGINATION HELPER ============
 function parsePagination(req: Request): { page: number; limit: number; offset: number } {
@@ -591,6 +596,138 @@ export async function registerRoutes(
       if (!p) return res.status(404).json({ error: "Payment not found" });
       res.json(p);
     } catch { res.status(500).json({ error: "Failed to update payment" }); }
+  });
+
+  // ============ ADMIN: USER MANAGEMENT ============
+  app.get("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const { page, limit } = parsePagination(req);
+      const allUsers = await db.select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        profileImageUrl: users.profileImageUrl,
+        createdAt: users.createdAt,
+        updatedAt: users.updatedAt,
+      }).from(users);
+      res.json(paginatedResponse(allUsers, page, limit));
+    } catch { res.status(500).json({ error: "Failed to fetch users" }); }
+  });
+
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    try {
+      const { email, password, firstName, lastName, role } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+      // Check if user already exists
+      const [existing] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+      if (existing) return res.status(409).json({ error: "A user with this email already exists" });
+
+      const passwordHash = await hashPassword(password);
+      const [newUser] = await db.insert(users).values({
+        email: email.toLowerCase(),
+        passwordHash,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        role: role === "admin" ? "admin" : "user",
+      }).returning();
+
+      const { passwordHash: _, ...userData } = newUser;
+      res.status(201).json(userData);
+    } catch (error) {
+      console.error("Create user error:", error);
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  });
+
+  app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      const { firstName, lastName, role, password } = req.body;
+      const updates: Record<string, any> = { updatedAt: new Date() };
+      if (firstName !== undefined) updates.firstName = firstName;
+      if (lastName !== undefined) updates.lastName = lastName;
+      if (role !== undefined) updates.role = role === "admin" ? "admin" : "user";
+      if (password) updates.passwordHash = await hashPassword(password);
+
+      const [updated] = await db.update(users).set(updates).where(eq(users.id, req.params.id)).returning();
+      if (!updated) return res.status(404).json({ error: "User not found" });
+
+      const { passwordHash: _, ...userData } = updated;
+      res.json(userData);
+    } catch { res.status(500).json({ error: "Failed to update user" }); }
+  });
+
+  app.delete("/api/admin/users/:id", isAdmin, async (req, res) => {
+    try {
+      // Prevent self-deletion
+      if (req.session.userId === req.params.id) {
+        return res.status(400).json({ error: "Cannot delete your own account" });
+      }
+      const [deleted] = await db.delete(users).where(eq(users.id, req.params.id)).returning();
+      if (!deleted) return res.status(404).json({ error: "User not found" });
+      res.status(204).send();
+    } catch { res.status(500).json({ error: "Failed to delete user" }); }
+  });
+
+  // ============ ADMIN: SETTINGS (ENV KEYS) ============
+  const ENV_KEYS = [
+    "DATABASE_URL", "SESSION_SECRET", "ADMIN_EMAIL", "AI_ADMIN_PASSWORD",
+    "CRON_SECRET", "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM",
+    "AI_INTEGRATIONS_OPENAI_API_KEY", "AI_INTEGRATIONS_OPENAI_BASE_URL",
+  ];
+
+  app.get("/api/admin/settings", isAdmin, (_req, res) => {
+    const settings: Record<string, string> = {};
+    for (const key of ENV_KEYS) {
+      const val = process.env[key];
+      // Mask secrets — only show last 4 chars
+      if (val && ["DATABASE_URL", "SESSION_SECRET", "AI_ADMIN_PASSWORD", "SMTP_PASS", "AI_INTEGRATIONS_OPENAI_API_KEY", "CRON_SECRET"].includes(key)) {
+        settings[key] = val.length > 4 ? "****" + val.slice(-4) : "****";
+      } else {
+        settings[key] = val || "";
+      }
+    }
+    res.json({ keys: ENV_KEYS, settings });
+  });
+
+  app.put("/api/admin/settings", isAdmin, (req, res) => {
+    try {
+      const updates: Record<string, string> = req.body;
+      const applied: string[] = [];
+
+      for (const [key, value] of Object.entries(updates)) {
+        if (!ENV_KEYS.includes(key)) continue;
+        // Skip masked values (unchanged)
+        if (typeof value === "string" && value.startsWith("****")) continue;
+        if (typeof value === "string" && value.trim() !== "") {
+          process.env[key] = value.trim();
+          applied.push(key);
+        }
+      }
+
+      // Persist to .env file if possible
+      try {
+        const envPath = join(process.cwd(), ".env");
+        let envContent = "";
+        if (existsSync(envPath)) {
+          envContent = readFileSync(envPath, "utf-8");
+        }
+        for (const key of applied) {
+          const regex = new RegExp(`^${key}=.*$`, "m");
+          const line = `${key}=${process.env[key]}`;
+          if (regex.test(envContent)) {
+            envContent = envContent.replace(regex, line);
+          } else {
+            envContent += (envContent.endsWith("\n") || envContent === "" ? "" : "\n") + line + "\n";
+          }
+        }
+        writeFileSync(envPath, envContent);
+      } catch { /* .env write is best-effort */ }
+
+      res.json({ success: true, applied });
+    } catch { res.status(500).json({ error: "Failed to save settings" }); }
   });
 
   // ============ BACKUP ============

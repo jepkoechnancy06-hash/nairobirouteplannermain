@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Target, Plus, Truck, TrendingUp, Search, MoreVertical, Pencil, Trash2, Calendar } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -36,6 +37,7 @@ export default function TargetsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingTarget, setEditingTarget] = useState<TargetType | null>(null);
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   const { data: targets = [], isLoading: targetsLoading } = useQuery<TargetType[]>({
     queryKey: ["/api/targets"],
@@ -448,13 +450,15 @@ export default function TargetsPage() {
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => deleteMutation.mutate(target.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem 
+                            onClick={() => deleteMutation.mutate(target.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

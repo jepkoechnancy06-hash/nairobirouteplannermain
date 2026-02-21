@@ -29,6 +29,8 @@ const ProcessMapPage = lazy(() => import("@/pages/process-map"));
 const OrdersPage = lazy(() => import("@/pages/orders"));
 const DispatchPage = lazy(() => import("@/pages/dispatch"));
 const ReportsPage = lazy(() => import("@/pages/reports"));
+const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
+const SettingsPage = lazy(() => import("@/pages/settings"));
 
 function AuthenticatedRouter() {
   return (
@@ -45,6 +47,8 @@ function AuthenticatedRouter() {
       <Route path="/orders" component={OrdersPage} />
       <Route path="/dispatch" component={DispatchPage} />
       <Route path="/reports" component={ReportsPage} />
+      <Route path="/admin/users" component={AdminUsersPage} />
+      <Route path="/admin/settings" component={SettingsPage} />
       <Route component={NotFound} />
     </Switch>
   );

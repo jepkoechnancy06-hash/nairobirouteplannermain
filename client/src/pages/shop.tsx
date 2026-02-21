@@ -14,6 +14,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Store, Plus, MapPin, Phone, User, Search, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -43,6 +44,7 @@ export default function ShopsPage() {
   const [coordinatesInput, setCoordinatesInput] = useState("-1.259000, 36.862000");
   const [coordinatesError, setCoordinatesError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   const { data: shops = [], isLoading } = useQuery<Shop[]>({
     queryKey: ["/api/shops"],
@@ -480,13 +482,15 @@ export default function ShopsPage() {
                             <Pencil className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => deleteMutation.mutate(shop.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem 
+                              onClick={() => deleteMutation.mutate(shop.id)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

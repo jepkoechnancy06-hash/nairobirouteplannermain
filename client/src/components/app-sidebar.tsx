@@ -1,4 +1,4 @@
-import { LayoutDashboard, Store, Truck, Route, Target, Map, LogOut, Shield, Brain, Database, GitBranch, ClipboardList, PackageCheck, FileBarChart } from "lucide-react";
+import { LayoutDashboard, Store, Truck, Route, Target, Map, LogOut, Shield, Brain, Database, GitBranch, ClipboardList, PackageCheck, FileBarChart, Users, Settings } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -78,6 +78,19 @@ const planningItems = [
     title: "AI Analytics",
     url: "/analytics",
     icon: Brain,
+  },
+];
+
+const adminItems = [
+  {
+    title: "User Management",
+    url: "/admin/users",
+    icon: Users,
+  },
+  {
+    title: "Settings",
+    url: "/admin/settings",
+    icon: Settings,
   },
   {
     title: "Backup",
@@ -175,6 +188,29 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {isAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {adminItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={location === item.url}
+                    >
+                      <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(" ", "-")}`}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border p-3">

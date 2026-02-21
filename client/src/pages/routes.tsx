@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Route as RouteIcon, Plus, Clock, MapPin, Truck, Wand2, Search, MoreVertical, Pencil, Trash2, Play, CheckCircle } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -37,6 +38,7 @@ export default function RoutesPage() {
   const [editingRoute, setEditingRoute] = useState<Route | null>(null);
   const [selectedShopIds, setSelectedShopIds] = useState<string[]>([]);
   const { toast } = useToast();
+  const { isAdmin } = useAuth();
 
   const { data: routes = [], isLoading: routesLoading } = useQuery<Route[]>({
     queryKey: ["/api/routes"],
@@ -475,13 +477,15 @@ export default function RoutesPage() {
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => deleteMutation.mutate(route.id)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem 
+                            onClick={() => deleteMutation.mutate(route.id)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
