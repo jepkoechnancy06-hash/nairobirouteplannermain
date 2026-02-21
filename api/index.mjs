@@ -443,14 +443,27 @@ var init_schema = __esm({
 // server/db.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
-var pool, db;
+var isSupabase, pool, db;
 var init_db = __esm({
   "server/db.ts"() {
     "use strict";
     init_schema();
+    isSupabase = process.env.DATABASE_URL?.includes("supabase");
     pool = new pg.Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: process.env.DATABASE_URL?.includes("supabase") ? { rejectUnauthorized: false } : void 0
+      ssl: isSupabase ? { rejectUnauthorized: false } : void 0,
+      // Production pool hardening
+      max: 10,
+      // max connections (Supabase pooler default limit)
+      idleTimeoutMillis: 3e4,
+      // close idle clients after 30s
+      connectionTimeoutMillis: 1e4,
+      // fail fast if DB unreachable
+      allowExitOnIdle: true
+      // let Node.js exit if pool is idle (important for serverless)
+    });
+    pool.on("error", (err) => {
+      console.error("Unexpected database pool error:", err.message);
     });
     db = drizzle(pool, { schema: schema_exports });
   }
