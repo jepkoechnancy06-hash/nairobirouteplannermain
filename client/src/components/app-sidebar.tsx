@@ -1,4 +1,4 @@
-import { LayoutDashboard, Store, Truck, Route, Target, Map, LogOut, Shield, Brain, Database, GitBranch, ClipboardList, PackageCheck, FileBarChart, Users, Settings, FileText } from "lucide-react";
+import { LayoutDashboard, Store, Truck, Route, Target, Map, LogOut, Shield, Brain, Database, GitBranch, ClipboardList, PackageCheck, FileBarChart, Users, Settings, FileText, Package, Warehouse, Building2, ShoppingCart, UserCheck, CreditCard } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import {
   Sidebar,
@@ -38,6 +38,11 @@ const mainNavItems = [
     url: "/drivers",
     icon: Truck,
   },
+  {
+    title: "Salespersons",
+    url: "/salespersons",
+    icon: UserCheck,
+  },
 ];
 
 const operationsItems = [
@@ -55,6 +60,11 @@ const operationsItems = [
     title: "Dispatch",
     url: "/dispatch",
     icon: PackageCheck,
+  },
+  {
+    title: "Payments",
+    url: "/payments",
+    icon: CreditCard,
   },
   {
     title: "Reports",
@@ -78,6 +88,29 @@ const planningItems = [
     title: "AI Analytics",
     url: "/analytics",
     icon: Brain,
+  },
+];
+
+const inventoryItems = [
+  {
+    title: "Products",
+    url: "/products",
+    icon: Package,
+  },
+  {
+    title: "Inventory",
+    url: "/inventory",
+    icon: Warehouse,
+  },
+  {
+    title: "Suppliers",
+    url: "/suppliers",
+    icon: Building2,
+  },
+  {
+    title: "Procurement",
+    url: "/procurement",
+    icon: ShoppingCart,
   },
 ];
 
@@ -158,6 +191,27 @@ export function AppSidebar() {
                     isActive={location === item.url}
                   >
                     <Link href={item.url} data-testid={`nav-${item.title.toLowerCase().replace(" ", "-")}`}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Inventory & Supply</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {inventoryItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    asChild
+                    isActive={location === item.url}
+                  >
+                    <Link href={item.url} data-testid={`nav-${item.title.toLowerCase()}`}>
                       <item.icon className="h-4 w-4" />
                       <span>{item.title}</span>
                     </Link>

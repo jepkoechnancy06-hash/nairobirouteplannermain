@@ -14,8 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Plus, ClipboardList, Clock, Package, CheckCircle2,
-  Truck, CreditCard, Search, Filter
+  Truck, CreditCard, Search, Filter, Wallet
 } from "lucide-react";
+import PaymentGatewaySelector from "@/components/payment-gateway";
 
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
@@ -36,18 +37,19 @@ export default function OrdersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [payDialogOrder, setPayDialogOrder] = useState<any>(null);
 
-  const { data: orders = [], isLoading, isError } = useQuery({
+  const { data: orders = [], isLoading, isError } = useQuery<any[]>({
     queryKey: ["/api/orders"],
     queryFn: () => fetchList("/api/orders"),
   });
 
-  const { data: shops = [] } = useQuery({
+  const { data: shops = [] } = useQuery<any[]>({
     queryKey: ["/api/shops"],
     queryFn: () => fetchList("/api/shops"),
   });
 
-  const { data: salespersons = [] } = useQuery({
+  const { data: salespersons = [] } = useQuery<any[]>({
     queryKey: ["/api/salespersons"],
     queryFn: () => fetchList("/api/salespersons"),
   });
@@ -258,15 +260,27 @@ export default function OrdersPage() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {nextStatus && order.status !== "cancelled" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => updateStatus.mutate({ id: order.id, status: nextStatus })}
-                          >
-                            → {nextStatus}
-                          </Button>
-                        )}
+                        <div className="flex gap-1">
+                          {nextStatus && order.status !== "cancelled" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => updateStatus.mutate({ id: order.id, status: nextStatus })}
+                            >
+                              → {nextStatus}
+                            </Button>
+                          )}
+                          {["confirmed", "processing", "packed", "dispatched", "delivered"].includes(order.status) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-600"
+                              onClick={() => setPayDialogOrder(order)}
+                            >
+                              <Wallet className="h-3 w-3 mr-1" /> Pay
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -276,6 +290,28 @@ export default function OrdersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Payment Gateway Dialog */}
+      <Dialog open={!!payDialogOrder} onOpenChange={(open) => { if (!open) setPayDialogOrder(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Pay for Order {payDialogOrder?.orderNumber}</DialogTitle>
+          </DialogHeader>
+          {payDialogOrder && (
+            <PaymentGatewaySelector
+              orderId={payDialogOrder.id}
+              orderNumber={payDialogOrder.orderNumber}
+              amount={payDialogOrder.totalAmount || 0}
+              customerPhone={shops.find((s: any) => s.id === payDialogOrder.shopId)?.phone || ""}
+              customerName={getShopName(payDialogOrder.shopId)}
+              onPaymentCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+              }}
+              onClose={() => setPayDialogOrder(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -319,8 +355,42 @@ function OrderForm({
     salespersonId: "",
     totalAmount: "",
     notes: "",
+    orderImageUrl: "",
     deliveryDate: new Date(Date.now() + 86400000).toISOString().split("T")[0],
   });
+
+  // Order line items
+  const [lineItems, setLineItems] = useState<{ productId: string; quantity: string; unitPrice: string }[]>([]);
+  const { data: products = [] } = useQuery<any[]>({
+    queryKey: ["/api/products"],
+    queryFn: () => fetchList("/api/products"),
+  });
+
+  const addLineItem = () => {
+    setLineItems([...lineItems, { productId: "", quantity: "1", unitPrice: "" }]);
+  };
+
+  const removeLineItem = (idx: number) => {
+    setLineItems(lineItems.filter((_, i) => i !== idx));
+  };
+
+  const updateLineItem = (idx: number, field: string, value: string) => {
+    const updated = [...lineItems];
+    (updated[idx] as any)[field] = value;
+    // Auto-fill price when product is selected
+    if (field === "productId") {
+      const prod = products.find((p: any) => p.id === value);
+      if (prod) updated[idx].unitPrice = prod.unitPrice?.toString() || "";
+    }
+    setLineItems(updated);
+  };
+
+  // Calculate total from line items if any exist
+  const lineItemsTotal = lineItems.reduce((sum, item) => {
+    return sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unitPrice) || 0);
+  }, 0);
+
+  const effectiveTotal = lineItems.length > 0 ? lineItemsTotal : parseFloat(form.totalAmount) || 0;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -328,15 +398,22 @@ function OrderForm({
     const cutoffMet = now.getHours() < 16;
     onSubmit({
       ...form,
-      totalAmount: parseFloat(form.totalAmount) || 0,
+      totalAmount: effectiveTotal,
       orderNumber: `ORD-${Date.now().toString(36).toUpperCase()}`,
       cutoffMet,
       status: "pending",
+      orderImageUrl: form.orderImageUrl || null,
+      lineItems: lineItems.length > 0 ? lineItems.map(item => ({
+        productId: item.productId,
+        quantity: parseInt(item.quantity) || 1,
+        unitPrice: parseFloat(item.unitPrice) || 0,
+        totalPrice: (parseInt(item.quantity) || 1) * (parseFloat(item.unitPrice) || 0),
+      })) : undefined,
     });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 max-h-[70vh] overflow-y-auto pr-1">
       <div>
         <Label>Customer (Shop)</Label>
         <Select value={form.shopId} onValueChange={(v) => setForm({ ...form, shopId: v })}>
@@ -346,7 +423,7 @@ function OrderForm({
           <SelectContent>
             {shops.map((s: any) => (
               <SelectItem key={s.id} value={s.id}>
-                {s.name} ({s.category})
+                {s.name} ({s.category?.replace(/_/g, " ")})
               </SelectItem>
             ))}
           </SelectContent>
@@ -367,14 +444,72 @@ function OrderForm({
           </SelectContent>
         </Select>
       </div>
+
+      {/* Order Line Items */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-semibold">Order Items (SKU)</Label>
+          <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
+            <Plus className="h-3 w-3 mr-1" /> Add Item
+          </Button>
+        </div>
+        {lineItems.length > 0 ? (
+          <div className="space-y-2 rounded-md border p-3">
+            {lineItems.map((item, idx) => (
+              <div key={idx} className="flex gap-2 items-end">
+                <div className="flex-1">
+                  {idx === 0 && <Label className="text-xs">Product</Label>}
+                  <Select value={item.productId} onValueChange={(v) => updateLineItem(idx, "productId", v)}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((p: any) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name} ({p.sku})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="w-16">
+                  {idx === 0 && <Label className="text-xs">Qty</Label>}
+                  <Input className="h-8 text-xs" type="number" value={item.quantity} onChange={(e) => updateLineItem(idx, "quantity", e.target.value)} />
+                </div>
+                <div className="w-24">
+                  {idx === 0 && <Label className="text-xs">Price</Label>}
+                  <Input className="h-8 text-xs" type="number" value={item.unitPrice} onChange={(e) => updateLineItem(idx, "unitPrice", e.target.value)} />
+                </div>
+                <Button type="button" variant="ghost" size="sm" className="h-8 w-8 p-0 text-destructive" onClick={() => removeLineItem(idx)}>×</Button>
+              </div>
+            ))}
+            <div className="text-right text-sm font-medium pt-2 border-t">
+              Line Items Total: KES {lineItemsTotal.toLocaleString()}
+            </div>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No items added. Enter total amount below, or add items for SKU-level tracking.</p>
+        )}
+      </div>
+
+      {lineItems.length === 0 && (
+        <div>
+          <Label>Total Amount (KES)</Label>
+          <Input
+            type="number"
+            value={form.totalAmount}
+            onChange={(e) => setForm({ ...form, totalAmount: e.target.value })}
+            placeholder="0"
+          />
+        </div>
+      )}
+
       <div>
-        <Label>Total Amount (KES)</Label>
+        <Label>Order Image URL (Snapshot)</Label>
         <Input
-          type="number"
-          value={form.totalAmount}
-          onChange={(e) => setForm({ ...form, totalAmount: e.target.value })}
-          placeholder="0"
+          value={form.orderImageUrl}
+          onChange={(e) => setForm({ ...form, orderImageUrl: e.target.value })}
+          placeholder="https://... (WhatsApp order book snapshot URL)"
         />
+        <p className="text-xs text-muted-foreground mt-1">Paste the URL of the order book snapshot sent via WhatsApp</p>
       </div>
       <div>
         <Label>Delivery Date</Label>

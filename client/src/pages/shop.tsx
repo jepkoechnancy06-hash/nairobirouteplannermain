@@ -29,7 +29,7 @@ const shopFormSchema = z.object({
   address: z.string().optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
-  category: z.enum(["retail", "wholesale", "kiosk"]),
+  category: z.enum(["kiosk", "retail", "wholesale", "wines_and_spirits", "bar_and_restaurant", "hotel", "school", "supplier"]),
   status: z.enum(["active", "inactive", "pending"]),
   notes: z.string().optional(),
 });
@@ -138,7 +138,7 @@ export default function ShopsPage() {
       address: shop.address || "",
       latitude: shop.latitude,
       longitude: shop.longitude,
-      category: shop.category as "retail" | "wholesale" | "kiosk",
+      category: shop.category as "kiosk" | "retail" | "wholesale" | "wines_and_spirits" | "bar_and_restaurant" | "hotel" | "school" | "supplier",
       status: shop.status as "active" | "inactive" | "pending",
       notes: shop.notes || "",
     });
@@ -287,9 +287,14 @@ export default function ShopsPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <SelectItem value="kiosk">Kiosk</SelectItem>
                             <SelectItem value="retail">Retail</SelectItem>
                             <SelectItem value="wholesale">Wholesale</SelectItem>
-                            <SelectItem value="kiosk">Kiosk</SelectItem>
+                            <SelectItem value="wines_and_spirits">Wines & Spirits</SelectItem>
+                            <SelectItem value="bar_and_restaurant">Bar & Restaurant</SelectItem>
+                            <SelectItem value="hotel">Hotel</SelectItem>
+                            <SelectItem value="school">School</SelectItem>
+                            <SelectItem value="supplier">Supplier</SelectItem>
                           </SelectContent>
                         </Select>
                         <FormMessage />

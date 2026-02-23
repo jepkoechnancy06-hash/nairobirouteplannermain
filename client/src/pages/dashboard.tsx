@@ -5,8 +5,9 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/stat-card";
 import { MapView } from "@/components/map-view";
-import { Store, Truck, Route, Target, TrendingUp, Clock, MapPin } from "lucide-react";
+import { Store, Truck, Route, Target, TrendingUp, Clock, MapPin, ClipboardList, PackageCheck, CreditCard } from "lucide-react";
 import type { Shop, Driver, Route as RouteType, Target as TargetType } from "@shared/schema";
+import { fetchList } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const { data: shops = [], isLoading: shopsLoading } = useQuery<Shop[]>({
@@ -23,6 +24,21 @@ export default function Dashboard() {
 
   const { data: targets = [], isLoading: targetsLoading } = useQuery<TargetType[]>({
     queryKey: ["/api/targets"],
+  });
+
+  const { data: orders = [] } = useQuery({
+    queryKey: ["/api/orders"],
+    queryFn: () => fetchList("/api/orders"),
+  });
+
+  const { data: dispatches = [] } = useQuery({
+    queryKey: ["/api/dispatches"],
+    queryFn: () => fetchList("/api/dispatches"),
+  });
+
+  const { data: payments = [] } = useQuery({
+    queryKey: ["/api/payments"],
+    queryFn: () => fetchList("/api/payments"),
   });
 
   const isLoading = shopsLoading || driversLoading || routesLoading || targetsLoading;
@@ -103,6 +119,38 @@ export default function Dashboard() {
           subtitle={`${totalCompletedShops} of ${totalTargetShops} shops`}
           icon={Target}
           iconColor="text-chart-4"
+        />
+      </div>
+
+      {/* Order & Dispatch Stats */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Today's Orders"
+          value={orders.filter((o: any) => o.createdAt && new Date(o.createdAt).toDateString() === new Date().toDateString()).length || orders.length}
+          subtitle={`${orders.filter((o: any) => o.status === "pending").length} pending`}
+          icon={ClipboardList}
+          iconColor="text-blue-500"
+        />
+        <StatCard
+          title="Active Dispatches"
+          value={dispatches.filter((d: any) => d.status !== "completed").length}
+          subtitle={`${dispatches.filter((d: any) => d.status === "packing").length} packing, ${dispatches.filter((d: any) => d.status === "in_transit" || d.status === "flagged_off").length} in transit`}
+          icon={PackageCheck}
+          iconColor="text-amber-500"
+        />
+        <StatCard
+          title="Order Value"
+          value={`KES ${orders.reduce((s: number, o: any) => s + (o.totalAmount || 0), 0).toLocaleString()}`}
+          subtitle={`${orders.filter((o: any) => o.status === "delivered" || o.status === "paid").length} delivered`}
+          icon={TrendingUp}
+          iconColor="text-green-500"
+        />
+        <StatCard
+          title="Payments"
+          value={`KES ${payments.filter((p: any) => p.status === "confirmed").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`}
+          subtitle={`${payments.filter((p: any) => p.status === "pending" || p.status === "received").length} pending confirmation`}
+          icon={CreditCard}
+          iconColor="text-emerald-500"
         />
       </div>
 

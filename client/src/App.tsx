@@ -33,6 +33,12 @@ const ReportsPage = lazy(() => import("@/pages/reports"));
 const AdminUsersPage = lazy(() => import("@/pages/admin-users"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
 const PrivacyPolicyPage = lazy(() => import("@/pages/privacy-policy"));
+const ProductsPage = lazy(() => import("@/pages/products"));
+const InventoryPage = lazy(() => import("@/pages/inventory"));
+const SuppliersPage = lazy(() => import("@/pages/suppliers"));
+const ProcurementPage = lazy(() => import("@/pages/procurement"));
+const SalespersonsPage = lazy(() => import("@/pages/salespersons"));
+const PaymentsPage = lazy(() => import("@/pages/payments"));
 
 function AuthenticatedRouter() {
   return (
@@ -49,6 +55,12 @@ function AuthenticatedRouter() {
       <Route path="/orders" component={OrdersPage} />
       <Route path="/dispatch" component={DispatchPage} />
       <Route path="/reports" component={ReportsPage} />
+      <Route path="/products" component={ProductsPage} />
+      <Route path="/inventory" component={InventoryPage} />
+      <Route path="/suppliers" component={SuppliersPage} />
+      <Route path="/procurement" component={ProcurementPage} />
+      <Route path="/salespersons" component={SalespersonsPage} />
+      <Route path="/payments" component={PaymentsPage} />
       <Route path="/admin/users" component={AdminUsersPage} />
       <Route path="/admin/settings" component={SettingsPage} />
       <Route path="/privacy-policy" component={PrivacyPolicyPage} />

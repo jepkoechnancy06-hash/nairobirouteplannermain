@@ -18,59 +18,69 @@ import {
 export default function ReportsPage() {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split("T")[0]);
 
-  const { data: orders = [], isLoading, isError } = useQuery({
+  const { data: orders = [], isLoading, isError } = useQuery<any[]>({
     queryKey: ["/api/orders"],
     queryFn: () => fetchList("/api/orders"),
   });
 
-  const { data: products = [] } = useQuery({
+  const { data: products = [] } = useQuery<any[]>({
     queryKey: ["/api/products"],
     queryFn: () => fetchList("/api/products"),
   });
 
-  const { data: inventory = [] } = useQuery({
+  const { data: inventory = [] } = useQuery<any[]>({
     queryKey: ["/api/inventory"],
     queryFn: () => fetchList("/api/inventory"),
   });
 
-  const { data: stockMovements = [] } = useQuery({
+  const { data: stockMovements = [] } = useQuery<any[]>({
     queryKey: ["/api/stock-movements"],
     queryFn: () => fetchList("/api/stock-movements"),
   });
 
-  const { data: procurements = [] } = useQuery({
+  const { data: procurements = [] } = useQuery<any[]>({
     queryKey: ["/api/procurements"],
     queryFn: () => fetchList("/api/procurements"),
   });
 
-  const { data: suppliers = [] } = useQuery({
+  const { data: suppliers = [] } = useQuery<any[]>({
     queryKey: ["/api/suppliers"],
     queryFn: () => fetchList("/api/suppliers"),
   });
 
-  const { data: payments = [] } = useQuery({
+  const { data: payments = [] } = useQuery<any[]>({
     queryKey: ["/api/payments"],
     queryFn: () => fetchList("/api/payments"),
   });
 
-  const { data: salespersons = [] } = useQuery({
+  const { data: salespersons = [] } = useQuery<any[]>({
     queryKey: ["/api/salespersons"],
     queryFn: () => fetchList("/api/salespersons"),
   });
 
-  const { data: shops = [] } = useQuery({
+  const { data: shops = [] } = useQuery<any[]>({
     queryKey: ["/api/shops"],
     queryFn: () => fetchList("/api/shops"),
   });
 
-  const { data: routes = [] } = useQuery({
+  const { data: routes = [] } = useQuery<any[]>({
     queryKey: ["/api/routes"],
     queryFn: () => fetchList("/api/routes"),
   });
 
-  const { data: targets = [] } = useQuery({
+  const { data: targets = [] } = useQuery<any[]>({
     queryKey: ["/api/targets"],
     queryFn: () => fetchList("/api/targets"),
+  });
+
+  const { data: orderItems = [] } = useQuery<any[]>({
+    queryKey: ["/api/order-items"],
+    queryFn: () => fetchList("/api/order-items"),
+  });
+
+  const { data: dispatches = [] } = useQuery<any[]>({
+    queryKey: ["/api/dispatches"],
+    queryFn: () => fetchList("/api/dispatches"),
   });
 
   if (isLoading) {
@@ -439,18 +449,26 @@ export default function ReportsPage() {
                       <TableHead>Route</TableHead>
                       <TableHead>Shops</TableHead>
                       <TableHead className="text-right">Est. Distance</TableHead>
+                      <TableHead className="text-right">Revenue (from shops)</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {routes.map((r: any) => (
-                      <TableRow key={r.id}>
-                        <TableCell className="font-medium">{r.name}</TableCell>
-                        <TableCell>{r.shopIds?.length || 0} shops</TableCell>
-                        <TableCell className="text-right">{r.estimatedDistance || 0} km</TableCell>
-                        <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
-                      </TableRow>
-                    ))}
+                    {routes.map((r: any) => {
+                      const routeShopIds = r.shopIds || [];
+                      const routeRevenue = orders
+                        .filter((o: any) => routeShopIds.includes(o.shopId))
+                        .reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+                      return (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.name}</TableCell>
+                          <TableCell>{routeShopIds.length} shops</TableCell>
+                          <TableCell className="text-right">{r.estimatedDistance || 0} km</TableCell>
+                          <TableCell className="text-right font-medium">KES {routeRevenue.toLocaleString()}</TableCell>
+                          <TableCell><Badge variant="outline">{r.status}</Badge></TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}
@@ -496,6 +514,56 @@ export default function ReportsPage() {
             </CardContent>
           </Card>
 
+          {/* 4.4 Creditors Account Reconciliation */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">4.4 Creditors Account Reconciliation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {(() => {
+                // Creditors = customers who received goods but haven't fully paid
+                const shopCreditors = shops.map((s: any) => {
+                  const shopOrders = orders.filter((o: any) => o.shopId === s.id && (o.status === "delivered" || o.status === "dispatched"));
+                  const totalOwed = shopOrders.reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+                  const totalPaid = payments
+                    .filter((p: any) => p.status === "confirmed" && shopOrders.some((o: any) => o.id === p.orderId))
+                    .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                  const balance = totalOwed - totalPaid;
+                  return { ...s, totalOwed, totalPaid, balance };
+                }).filter((s: any) => s.totalOwed > 0);
+
+                if (shopCreditors.length === 0) return <p className="text-muted-foreground text-sm">No outstanding creditor balances</p>;
+
+                return (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead className="text-right">Total Owed</TableHead>
+                        <TableHead className="text-right">Paid</TableHead>
+                        <TableHead className="text-right">Balance</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {shopCreditors.map((s: any) => (
+                        <TableRow key={s.id}>
+                          <TableCell className="font-medium">{s.name}</TableCell>
+                          <TableCell className="capitalize">{(s.category || "retail").replace(/_/g, " ")}</TableCell>
+                          <TableCell className="text-right">KES {s.totalOwed.toLocaleString()}</TableCell>
+                          <TableCell className="text-right text-green-600">KES {s.totalPaid.toLocaleString()}</TableCell>
+                          <TableCell className={`text-right font-bold ${s.balance > 0 ? "text-red-600" : "text-green-600"}`}>
+                            KES {s.balance.toLocaleString()}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                );
+              })()}
+            </CardContent>
+          </Card>
+
           {/* 4.5 Sales Breakdown */}
           <Card>
             <CardHeader>
@@ -524,13 +592,52 @@ export default function ReportsPage() {
                 <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
                   <Truck className="h-3.5 w-3.5" /> 4.5.2 Per Route
                 </h4>
-                {routes.map((r: any) => (
-                  <div key={r.id} className="flex justify-between text-sm py-1 border-b last:border-0">
-                    <span>{r.name}</span>
-                    <span className="font-medium">{r.shopIds?.length || 0} shops</span>
-                  </div>
-                ))}
+                {routes.map((r: any) => {
+                  const routeShopIds = r.shopIds || [];
+                  const routeRevenue = orders
+                    .filter((o: any) => routeShopIds.includes(o.shopId))
+                    .reduce((sum: number, o: any) => sum + (o.totalAmount || 0), 0);
+                  return (
+                    <div key={r.id} className="flex justify-between text-sm py-1 border-b last:border-0">
+                      <span>{r.name} ({routeShopIds.length} shops)</span>
+                      <span className="font-medium">KES {routeRevenue.toLocaleString()}</span>
+                    </div>
+                  );
+                })}
                 {routes.length === 0 && <p className="text-sm text-muted-foreground">No data</p>}
+              </div>
+
+              {/* Per SKU */}
+              <div>
+                <h4 className="text-sm font-semibold mb-2 flex items-center gap-1">
+                  <Package className="h-3.5 w-3.5" /> 4.5.3 Per SKU
+                </h4>
+                {(() => {
+                  // Aggregate order items by product
+                  const skuSales: Record<string, { name: string; sku: string; qty: number; revenue: number }> = {};
+                  orderItems.forEach((item: any) => {
+                    const prod = products.find((p: any) => p.id === item.productId);
+                    const key = item.productId;
+                    if (!skuSales[key]) {
+                      skuSales[key] = {
+                        name: prod?.name || item.productId,
+                        sku: prod?.sku || "—",
+                        qty: 0,
+                        revenue: 0,
+                      };
+                    }
+                    skuSales[key].qty += item.quantity || 0;
+                    skuSales[key].revenue += item.totalPrice || 0;
+                  });
+                  const entries = Object.values(skuSales).sort((a, b) => b.revenue - a.revenue);
+                  if (entries.length === 0) return <p className="text-sm text-muted-foreground">No SKU-level data. Add order line items to see per-product sales.</p>;
+                  return entries.map((entry, idx) => (
+                    <div key={idx} className="flex justify-between text-sm py-1 border-b last:border-0">
+                      <span>{entry.name} <span className="text-muted-foreground">({entry.sku})</span> — {entry.qty} units</span>
+                      <span className="font-medium">KES {entry.revenue.toLocaleString()}</span>
+                    </div>
+                  ));
+                })()}
               </div>
 
               {/* Per Category */}
