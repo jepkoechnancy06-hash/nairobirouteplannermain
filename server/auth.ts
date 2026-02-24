@@ -438,6 +438,8 @@ export async function ensureAdminUser(email: string, password: string) {
         .set({
           passwordHash,
           role: "admin",
+          firstName: "Machii",
+          lastName: "Jirmo",
           updatedAt: new Date(),
         })
         .where(eq(users.email, email.toLowerCase()));
@@ -449,8 +451,8 @@ export async function ensureAdminUser(email: string, password: string) {
       .values({
         email: email.toLowerCase(),
         passwordHash,
-        firstName: "Admin",
-        lastName: "User",
+        firstName: "Machii",
+        lastName: "Jirmo",
         role: "admin",
       });
   }
