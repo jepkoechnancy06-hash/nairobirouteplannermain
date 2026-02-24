@@ -31,6 +31,7 @@ const driverFormSchema = z.object({
 
 type DriverFormData = z.infer<typeof driverFormSchema>;
 
+export default function DriversPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
@@ -71,7 +72,8 @@ type DriverFormData = z.infer<typeof driverFormSchema>;
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<InsertDriver> }) => {
-      return apiRequest("PATCH", `/api/drivers/${id}`, data);
+      // avoid template starting with slash which might be misinterpreted as regex
+      return apiRequest("PATCH", "/api/drivers/" + id, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/drivers"] });
@@ -86,7 +88,8 @@ type DriverFormData = z.infer<typeof driverFormSchema>;
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/drivers/${id}`);
+      // avoid template starting with slash which might be misinterpreted as regex
+      return apiRequest("DELETE", "/api/drivers/" + id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/drivers"] });
@@ -280,6 +283,7 @@ type DriverFormData = z.infer<typeof driverFormSchema>;
             </Form>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Search */}
@@ -335,7 +339,7 @@ type DriverFormData = z.infer<typeof driverFormSchema>;
               </TableHeader>
               <TableBody>
                 {filteredDrivers.map((driver) => (
-                  <TableRow key={driver.id} data-testid={`driver-row-${driver.id}`}>
+                  <TableRow key={driver.id} data-testid={"driver-row-" + driver.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-full ${
@@ -386,7 +390,7 @@ type DriverFormData = z.infer<typeof driverFormSchema>;
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" data-testid={`button-driver-menu-${driver.id}`}>
+                          <Button variant="ghost" size="icon" data-testid={"button-driver-menu-" + driver.id}>
                             <MoreVertical className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
