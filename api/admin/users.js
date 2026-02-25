@@ -1,6 +1,6 @@
 
 
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { drizzle, eq } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { pgTable, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
@@ -37,7 +37,7 @@ async function requireAdmin(req, res) {
   const sid = req.cookies?.__veew_sid;
   if (!sid) return false;
   // fetch session data
-  const [row] = await db.select({ sess: sessions.sess }).from(sessions).where(sessions.sid.eq(sid));
+  const [row] = await db.select({ sess: sessions.sess }).from(sessions).where(eq(sessions.sid, sid));
   if (!row || !row.sess || !row.sess.userId) return false;
   const userId = row.sess.userId;
   const [user] = await db.select().from(users).where(users.id.eq(userId)).limit(1);
