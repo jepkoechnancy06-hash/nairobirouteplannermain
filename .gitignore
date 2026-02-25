@@ -31,3 +31,5 @@ replit.nix
 
 # Migrations (if generated locally)
 migrations/
+.vercel
+.env*.local
