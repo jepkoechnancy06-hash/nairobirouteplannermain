@@ -45,7 +45,10 @@ async function requireAdmin(req, res) {
   return user && user.role === 'admin';
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+});
 const db = drizzle(pool);
 
 export default async function handler(req, res) {
