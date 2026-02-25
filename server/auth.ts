@@ -1,15 +1,19 @@
 import type { Express, Request, Response, NextFunction } from "express";
+import express from "express";
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
+import connectPg from "connect-pg-simple";
+import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { db } from "./db";
 import { users, passwordResetTokens } from "@shared/models/auth";
-import { eq, and, gt, isNull } from "drizzle-orm";
+import type { User } from "@shared/models/auth";
+import { memoryDb, getMemoryUserByEmail, createMemoryUser, updateMemoryUser, getAllMemoryUsers } from "./memory-users";
+import { and, gt, isNull } from "drizzle-orm";
 import { pool } from "./db";
 import { sendPasswordResetEmail, isEmailConfigured } from "./email";
 
-const PgSession = connectPgSimple(session);
+const PgSession = (connectPg as any).default;
 
 declare module "express-session" {
   interface SessionData {
@@ -25,13 +29,32 @@ export async function setupAuth(app: Express) {
 
   app.set("trust proxy", 1);
 
-  app.use(
-    session({
-      store: new PgSession({
+  // Choose session store based on database availability
+  let sessionStore;
+  if (isDatabaseAvailable()) {
+    try {
+      // Try to use PostgreSQL session store
+      sessionStore = new PgSession({
         pool,
         tableName: "sessions",
         createTableIfMissing: false,
-      }),
+      });
+      console.log("✅ Using PostgreSQL session store");
+    } catch (error) {
+      console.error("⚠️  Failed to create PostgreSQL session store, falling back to memory:", error);
+      // Fallback to memory store
+      sessionStore = new (await import('express-session')).MemoryStore();
+      console.log("⚠️  Using in-memory session store (sessions will be lost on restart)");
+    }
+  } else {
+    // Use memory store when no database
+    sessionStore = new (await import('express-session')).MemoryStore();
+    console.log("⚠️  Using in-memory session store (no DATABASE_URL provided)");
+  }
+
+  app.use(
+    session({
+      store: sessionStore,
       name: "__veew_sid", // Custom cookie name (avoid default connect.sid fingerprinting)
       secret: sessionSecret,
       resave: false,
@@ -57,11 +80,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Find user by email
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email.toLowerCase()))
-        .limit(1);
+      const user = await getUserByEmail(email.toLowerCase());
 
       if (!user) {
         return res.status(401).json({ error: "Invalid email or password" });
@@ -120,11 +139,26 @@ export function registerAuthRoutes(app: Express) {
         return res.status(401).json({ error: "Not authenticated" });
       }
 
-      const [user] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, req.session.userId))
-        .limit(1);
+      // For memory users, we need to search by ID
+      let user = null;
+      if (isDatabaseAvailable()) {
+        try {
+          const [dbUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.id, req.session.userId))
+            .limit(1);
+          user = dbUser;
+        } catch (error) {
+          console.error("Database error, falling back to memory:", error);
+        }
+      }
+      
+      // If database failed or not available, try memory
+      if (!user) {
+        const allUsers = await getAllUsers();
+        user = allUsers.find(u => u.id === req.session.userId) || null;
+      }
 
       if (!user) {
         return res.status(401).json({ error: "User not found" });
@@ -417,44 +451,137 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 12);
 }
 
-// Helper function to create/update admin user
-export async function ensureAdminUser(email: string, password: string) {
-  // Check if user exists
-  const [existingUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.email, email.toLowerCase()))
-    .limit(1);
+// Helper function to check if database is available
+function isDatabaseAvailable(): boolean {
+  return process.env.DATABASE_URL && process.env.DATABASE_URL.length > 0;
+}
 
-  if (existingUser) {
-    // Only update if password changed or role isn't admin (avoid unnecessary writes)
-    const passwordMatch = existingUser.passwordHash
-      ? await bcrypt.compare(password, existingUser.passwordHash)
-      : false;
-    if (!passwordMatch || existingUser.role !== "admin") {
-      const passwordHash = await hashPassword(password);
-      await db
-        .update(users)
-        .set({
-          passwordHash,
-          role: "admin",
-          firstName: "Machii",
-          lastName: "Jirmo",
-          updatedAt: new Date(),
-        })
-        .where(eq(users.email, email.toLowerCase()));
+// Helper function to get user (database or memory)
+async function getUserByEmail(email: string): Promise<User | null> {
+  if (isDatabaseAvailable()) {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email.toLowerCase()))
+        .limit(1);
+      return user || null;
+    } catch (error) {
+      console.error("Database error, falling back to memory:", error);
+      return await getMemoryUserByEmail(email);
     }
   } else {
-    const passwordHash = await hashPassword(password);
-    await db
-      .insert(users)
-      .values({
-        email: email.toLowerCase(),
-        passwordHash,
+    return await getMemoryUserByEmail(email);
+  }
+}
+
+// Helper function to create user (database or memory)
+async function createUser(userData: {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+}): Promise<User> {
+  if (isDatabaseAvailable()) {
+    try {
+      const passwordHash = await hashPassword(userData.password);
+      const [user] = await db
+        .insert(users)
+        .values({
+          email: userData.email.toLowerCase(),
+          passwordHash,
+          firstName: userData.firstName || null,
+          lastName: userData.lastName || null,
+          role: userData.role || "user",
+        })
+        .returning();
+      return user;
+    } catch (error) {
+      console.error("Database error, falling back to memory:", error);
+      return await createMemoryUser(userData);
+    }
+  } else {
+    return await createMemoryUser(userData);
+  }
+}
+
+// Helper function to update user (database or memory)
+async function updateUser(email: string, updates: {
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+}): Promise<User | null> {
+  if (isDatabaseAvailable()) {
+    try {
+      const data: any = { ...updates, updatedAt: new Date() };
+      if (updates.password) {
+        data.passwordHash = await hashPassword(updates.password);
+        delete data.password;
+      }
+      
+      const [user] = await db
+        .update(users)
+        .set(data)
+        .where(eq(users.email, email.toLowerCase()))
+        .returning();
+      return user || null;
+    } catch (error) {
+      console.error("Database error, falling back to memory:", error);
+      return await updateMemoryUser(email, updates);
+    }
+  } else {
+    return await updateMemoryUser(email, updates);
+  }
+}
+
+// Helper function to get all users (database or memory)
+async function getAllUsers(): Promise<User[]> {
+  if (isDatabaseAvailable()) {
+    try {
+      return await db.select().from(users);
+    } catch (error) {
+      console.error("Database error, falling back to memory:", error);
+      return await getAllMemoryUsers();
+    }
+  } else {
+    return await getAllMemoryUsers();
+  }
+}
+
+// Helper function to create/update admin user
+export async function ensureAdminUser(email: string, password: string) {
+  try {
+    // Check if user exists
+    const existingUser = await getUserByEmail(email);
+
+    if (existingUser) {
+      // Only update if password changed or role isn't admin (avoid unnecessary writes)
+      const passwordMatch = existingUser.passwordHash
+        ? await bcrypt.compare(password, existingUser.passwordHash)
+        : false;
+      if (!passwordMatch || existingUser.role !== "admin") {
+        await updateUser(email, {
+          password,
+          firstName: "Machii",
+          lastName: "Jirmo",
+          role: "admin",
+        });
+      }
+    } else {
+      await createUser({
+        email,
+        password,
         firstName: "Machii",
         lastName: "Jirmo",
         role: "admin",
       });
+    }
+  } catch (error) {
+    console.error("Failed to ensure admin user:", error);
+    // Don't crash the server - log the error and continue
+    throw new Error(`Admin user setup failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -476,3 +603,6 @@ export function isManager(req: Request, res: Response, next: NextFunction) {
       res.status(500).json({ error: "Authorization check failed" });
     });
 }
+
+// Export hybrid user management functions
+export { getUserByEmail, createUser, updateUser, getAllUsers };

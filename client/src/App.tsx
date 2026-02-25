@@ -7,6 +7,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from "@/components/ui/s
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/hooks/use-auth";
+import { AdminRouteGuard, ManagerRouteGuard } from "@/components/admin-route-guard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { lazy, Suspense } from "react";
 import { CookieConsentBanner } from "@/components/cookie-consent";
@@ -61,8 +62,16 @@ function AuthenticatedRouter() {
       <Route path="/procurement" component={ProcurementPage} />
       <Route path="/salespersons" component={SalespersonsPage} />
       <Route path="/payments" component={PaymentsPage} />
-      <Route path="/admin/users" component={AdminUsersPage} />
-      <Route path="/admin/settings" component={SettingsPage} />
+      <Route path="/admin/users" component={() => (
+        <AdminRouteGuard>
+          <AdminUsersPage />
+        </AdminRouteGuard>
+      )} />
+      <Route path="/admin/settings" component={() => (
+        <AdminRouteGuard>
+          <SettingsPage />
+        </AdminRouteGuard>
+      )} />
       <Route path="/privacy-policy" component={PrivacyPolicyPage} />
       <Route component={NotFound} />
     </Switch>

@@ -21,6 +21,7 @@ import { insertShopSchema, insertDriverSchema, insertRouteSchema, insertTargetSc
   insertStockMovementSchema, insertInventorySchema
 } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, ensureAdminUser, isAuthenticated, isAdmin, isManager, hashPassword } from "./auth";
+import { getAllUsers, createUser, updateUser } from "./auth";
 import { registerAnalyticsRoutes } from "./ai/analytics-routes";
 import { createBackup, getBackupHistory } from "./backup";
 import { db } from "./db";
@@ -28,6 +29,7 @@ import { users } from "@shared/models/auth";
 import { eq } from "drizzle-orm";
 import { writeFileSync, readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { transporter } from "./emails";
 
 // ============ PAGINATION HELPER ============
 function parsePagination(req: Request): { page: number; limit: number; offset: number } {
@@ -146,8 +148,16 @@ export async function registerRoutes(
   // Ensure admin user exists with correct credentials
   const adminEmail = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.AI_ADMIN_PASSWORD;
-  if (adminPassword) {
-    await ensureAdminUser(adminEmail, adminPassword);
+  if (adminPassword && adminEmail) {
+    try {
+      await ensureAdminUser(adminEmail, adminPassword);
+      console.log("✅ Admin user setup completed successfully");
+    } catch (error) {
+      console.error("⚠️  Admin user setup failed:", error instanceof Error ? error.message : String(error));
+      console.log("⚠️  Admin features may not work properly until admin user is configured");
+    }
+  } else {
+    console.warn("⚠️  ADMIN_EMAIL or AI_ADMIN_PASSWORD not set - admin features disabled");
   }
   
   // ============ SHOPS ============
@@ -694,22 +704,13 @@ export async function registerRoutes(
   app.get("/api/admin/users", isAdmin, async (req, res) => {
     try {
       const { page, limit } = parsePagination(req);
-      const allUsers = await db.select({
-        id: users.id,
-        email: users.email,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        role: users.role,
-        profileImageUrl: users.profileImageUrl,
-        createdAt: users.createdAt,
-        updatedAt: users.updatedAt,
-      }).from(users);
+      const allUsers = await getAllUsers();
       res.json(paginatedResponse(allUsers, page, limit));
     } catch { res.status(500).json({ error: "Failed to fetch users" }); }
   });
 
-  app.post("/api/admin/users", isManager, async (req, res) => {
-    // Only managers can create users (not regular users)
+  app.post("/api/admin/users", isAdmin, async (req, res) => {
+    // Only admins can create users (changed from isManager for consistency)
     try {
       const { email, password, firstName, lastName, role } = req.body;
       if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
@@ -726,6 +727,62 @@ export async function registerRoutes(
       }
 
       // Check if user already exists
+      const existing = await getAllUsers().find(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existing) return res.status(409).json({ error: "A user with this email already exists" });
+
+      const newUser = await createUser({
+        email,
+        password,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        role: (role === "admin" && email.toLowerCase() === String(process.env.ADMIN_EMAIL).toLowerCase()) ? "admin" : (role === "manager" ? "manager" : "user"),
+      });
+
+      // Send credentials email
+      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && transporter) {
+        try {
+          await transporter.sendMail({
+            from: process.env.SMTP_FROM,
+            to: email,
+            subject: "Your Veew Distributors Account",
+            html: `
+              <h2>Welcome to Veew Distributors!</h2>
+              <p>Your account has been created with the following credentials:</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Password:</strong> ${password}</p>
+              <p>Please log in and change your password as soon as possible.</p>
+              <p><a href="${process.env.CORS_ORIGIN || 'http://localhost:5000'}/login">Login to Veew Distributors</a></p>
+            `,
+          });
+        } catch (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+        }
+      }
+
+      const { passwordHash: _, ...userData } = newUser;
+      res.status(201).json(userData);
+    } catch { res.status(500).json({ error: "Failed to create user" }); }
+  });
+
+  // Manager route for creating users (limited to non-admin roles)
+  app.post("/api/manager/users", isManager, async (req, res) => {
+    // Managers can create users but not admins
+    try {
+      const { email, password, firstName, lastName, role } = req.body;
+      if (!email || !password) return res.status(400).json({ error: "Email and password are required" });
+
+      // Managers cannot create admin users
+      if (role === "admin") {
+        return res.status(403).json({ error: "Managers cannot create admin users" });
+      }
+
+      // Password complexity: min 8, uppercase, lowercase, digit
+      if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters" });
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+        return res.status(400).json({ error: "Password must contain uppercase, lowercase, and a digit" });
+      }
+
+      // Check if user already exists
       const [existing] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
       if (existing) return res.status(409).json({ error: "A user with this email already exists" });
 
@@ -735,23 +792,33 @@ export async function registerRoutes(
         passwordHash,
         firstName: firstName || null,
         lastName: lastName || null,
-        role: (role === "admin" && email.toLowerCase() === String(process.env.ADMIN_EMAIL).toLowerCase()) ? "admin" : (role === "manager" ? "manager" : "user"),
+        role: role === "manager" ? "manager" : "user",
       }).returning();
 
       // Send credentials email
-      try {
-        const { sendCredentialsEmail } = require("./emails");
-        await sendCredentialsEmail(email, password, firstName || "User");
-      } catch (e) {
-        console.error("Failed to send credentials email:", e);
+      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && transporter) {
+        try {
+          await transporter.sendMail({
+            from: process.env.SMTP_FROM,
+            to: email,
+            subject: "Your Veew Distributors Account",
+            html: `
+              <h2>Welcome to Veew Distributors!</h2>
+              <p>Your account has been created with the following credentials:</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Password:</strong> ${password}</p>
+              <p>Please log in and change your password as soon as possible.</p>
+              <p><a href="${process.env.CORS_ORIGIN || 'http://localhost:5000'}/login">Login to Veew Distributors</a></p>
+            `,
+          });
+        } catch (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+        }
       }
 
       const { passwordHash: _, ...userData } = newUser;
       res.status(201).json(userData);
-    } catch (error) {
-      console.error("Create user error:", error);
-      res.status(500).json({ error: "Failed to create user" });
-    }
+    } catch { res.status(500).json({ error: "Failed to create user" }); }
   });
 
   app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
@@ -764,16 +831,21 @@ export async function registerRoutes(
       // Prevent updating any user to admin except the environment admin
       if (role !== undefined) {
         // Get the user's email
-        const [user] = await db.select({ email: users.email }).from(users).where(eq(users.id, req.params.id)).limit(1);
-        if (!user) return res.status(404).json({ error: "User not found" });
-        if (role === "admin" && user.email.toLowerCase() !== String(process.env.ADMIN_EMAIL).toLowerCase()) {
+        const allUsers = await getAllUsers();
+        const targetUser = allUsers.find(u => u.id === req.params.id);
+        if (!targetUser) return res.status(404).json({ error: "User not found" });
+        if (role === "admin" && (targetUser.email?.toLowerCase() !== String(process.env.ADMIN_EMAIL).toLowerCase())) {
           return res.status(400).json({ error: "Only the environment admin can have the admin role" });
         }
-        updates.role = (role === "admin" && user.email.toLowerCase() === String(process.env.ADMIN_EMAIL).toLowerCase()) ? "admin" : (role === "manager" ? "manager" : "user");
+        updates.role = (role === "admin" && targetUser.email?.toLowerCase() === String(process.env.ADMIN_EMAIL).toLowerCase()) ? "admin" : (role === "manager" ? "manager" : "user");
       }
-      if (password) updates.passwordHash = await hashPassword(password);
+      if (password) updates.password = password;
 
-      const [updated] = await db.update(users).set(updates).where(eq(users.id, req.params.id)).returning();
+      // Get the user again for the update call
+      const userForUpdate = await getAllUsers().find(u => u.id === req.params.id);
+      if (!userForUpdate) return res.status(404).json({ error: "User not found" });
+      
+      const updated = await updateUser(userForUpdate.email, updates);
       if (!updated) return res.status(404).json({ error: "User not found" });
 
       const { passwordHash: _, ...userData } = updated;

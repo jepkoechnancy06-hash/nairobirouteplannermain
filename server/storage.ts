@@ -718,7 +718,16 @@ function createStorage(): IStorage {
       return new DatabaseStorage();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      throw new Error(`Failed to initialize database storage: ${errorMessage}`);
+      console.error(`⚠️  Failed to initialize database storage: ${errorMessage}`);
+      console.warn("⚠️  Falling back to in-memory storage. Data will be lost on restart.");
+      
+      // Fall back to in-memory storage instead of crashing
+      if (!isProduction) {
+        return new MemStorage();
+      } else {
+        // In production, we still want to fail if database is critical
+        throw new Error(`Database initialization failed in production: ${errorMessage}`);
+      }
     }
   }
   

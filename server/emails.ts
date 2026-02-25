@@ -123,3 +123,5 @@ export async function sendPasswordResetEmail(
 export function isEmailConfigured(): boolean {
   return transporter !== null;
 }
+
+export { transporter };
