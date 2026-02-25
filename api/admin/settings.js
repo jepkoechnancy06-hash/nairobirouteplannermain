@@ -1,6 +1,7 @@
 
 
-import { drizzle, eq } from 'drizzle-orm/node-postgres';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { eq } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { sql } from 'drizzle-orm';
 import { pgTable, varchar, timestamp, jsonb, index } from 'drizzle-orm/pg-core';
