@@ -310,7 +310,7 @@ describe("Critical Path Integration Tests", () => {
       sensitiveSettings.forEach(setting => {
         if (setting.value && setting.value.length > 0) {
           expect(setting.masked).toBe(true);
-          expect(setting.value).toMatch(/^****[\w]*$/);
+          expect(setting.value).toMatch(/^(\*{4}[A-Za-z0-9]{2})$|^\*{4}$/);
         }
       });
     });
