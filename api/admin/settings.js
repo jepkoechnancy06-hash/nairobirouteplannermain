@@ -30,9 +30,17 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Strip sslmode from connection string so pg driver doesn't override our SSL config
+// (sslmode=require causes verify-full with Supabase → SELF_SIGNED_CERT_IN_CHAIN)
+const rawUrl = process.env.DATABASE_URL ?? '';
+const connectionString = rawUrl.replace(/[?&]sslmode=[^&]*/g, (m) =>
+  m.startsWith('?') ? '?' : ''
+).replace(/\?&/, '?').replace(/\?$/, '');
+const isSupabase = rawUrl.includes('supabase');
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+  connectionString,
+  ssl: isSupabase || process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
 });
 const db = drizzle(pool);
 
@@ -44,7 +52,7 @@ async function requireAdmin(req, res) {
   // get user id out of session data
   const userId = row.sess.userId;
   // only role check; we can reuse settings endpoint? bypass DB again
-  const [userRow] = await db.select().from(users).where(users.id.eq(userId)).limit(1);
+  const [userRow] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   if (!userRow) return false;
   return userRow.role === 'admin';
 }

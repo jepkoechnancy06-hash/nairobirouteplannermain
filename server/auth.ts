@@ -13,7 +13,8 @@ import { and, gt, isNull } from "drizzle-orm";
 import { pool } from "./db";
 import { sendPasswordResetEmail, isEmailConfigured } from "./email";
 
-const PgSession = (connectPg as any).default;
+// connect-pg-simple exports a function(session) that returns the Store class
+const PgSessionStore = typeof connectPg === "function" ? connectPg(session) : ((connectPg as any).default ?? connectPg)(session);
 
 declare module "express-session" {
   interface SessionData {
@@ -34,7 +35,7 @@ export async function setupAuth(app: Express) {
   if (isDatabaseAvailable()) {
     try {
       // Try to use PostgreSQL session store
-      sessionStore = new PgSession({
+      sessionStore = new PgSessionStore({
         pool,
         tableName: "sessions",
         createTableIfMissing: false,

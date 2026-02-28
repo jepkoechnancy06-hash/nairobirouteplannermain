@@ -34,6 +34,20 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)]
 );
 
+// Strip sslmode from connection string so pg driver doesn't override our SSL config
+// (sslmode=require causes verify-full with Supabase → SELF_SIGNED_CERT_IN_CHAIN)
+const rawUrl = process.env.DATABASE_URL ?? '';
+const connectionString = rawUrl.replace(/[?&]sslmode=[^&]*/g, (m) =>
+  m.startsWith('?') ? '?' : ''
+).replace(/\?&/, '?').replace(/\?$/, '');
+const isSupabase = rawUrl.includes('supabase');
+
+const pool = new Pool({
+  connectionString,
+  ssl: isSupabase || process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+});
+const db = drizzle(pool);
+
 async function requireAdmin(req, res) {
   const sid = req.cookies?.__veew_sid;
   if (!sid) return false;
@@ -41,15 +55,9 @@ async function requireAdmin(req, res) {
   const [row] = await db.select({ sess: sessions.sess }).from(sessions).where(eq(sessions.sid, sid));
   if (!row || !row.sess || !row.sess.userId) return false;
   const userId = row.sess.userId;
-  const [user] = await db.select().from(users).where(users.id.eq(userId)).limit(1);
+  const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
   return user && user.role === 'admin';
 }
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
-});
-const db = drizzle(pool);
 
 export default async function handler(req, res) {
   if (!(await requireAdmin(req, res))) {
@@ -74,7 +82,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Only the environment admin can have the admin role' });
     }
     // Check if user exists
-    const existing = await db.select().from(users).where(users.email.eq(email.toLowerCase()));
+    const existing = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
     if (existing.length > 0) return res.status(409).json({ error: 'A user with this email already exists' });
     const passwordHash = await bcrypt.hash(password, 10);
     const [newUser] = await db.insert(users).values({
