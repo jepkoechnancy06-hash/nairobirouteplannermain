@@ -1,8 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/page-header";
 import {
   User, ClipboardList, Camera, MapPin, Table2, Clock,
-  Package, Truck, Eye, Smartphone, CheckCircle2, ArrowDown,
+  Package, Truck, CheckCircle2, ArrowDown,
   ArrowRight, Building2, AlertCircle
 } from "lucide-react";
 
@@ -135,13 +136,10 @@ const customerTypes = [
 export default function ProcessMapPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Distribution Process Map</h1>
-        <p className="text-muted-foreground">
-          Veew Distributors — end-to-end order-to-delivery workflow
-        </p>
-      </div>
+      <PageHeader
+        title="Distribution Process Map"
+        description="Veew Distributors — end-to-end order-to-delivery workflow"
+      />
 
       {/* Department Legend */}
       <div className="flex flex-wrap gap-2">

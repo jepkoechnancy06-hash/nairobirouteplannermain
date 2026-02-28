@@ -1,5 +1,5 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Store, Plus, MapPin, Phone, User, Search, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Store, Plus, MapPin, Search, MoreVertical, Pencil, Trash2, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -179,7 +180,7 @@ export default function ShopsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-9 w-28" />
@@ -191,13 +192,11 @@ export default function ShopsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6" data-testid="shops-page">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Shops</h1>
-          <p className="text-muted-foreground">Manage retail outlets in Huruma/Mathare area</p>
-        </div>
+    <div className="flex flex-col gap-6 p-6" data-testid="shops-page">
+      <PageHeader
+        title="Shops"
+        description="Manage retail outlets in Huruma/Mathare area"
+      >
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
@@ -386,6 +385,9 @@ export default function ShopsPage() {
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-submit-shop"
                   >
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {createMutation.isPending || updateMutation.isPending ? "Saving..." : (editingShop ? "Update" : "Add Shop")}
                   </Button>
                 </div>
@@ -393,7 +395,7 @@ export default function ShopsPage() {
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -446,7 +448,7 @@ export default function ShopsPage() {
               </TableHeader>
               <TableBody>
                 {filteredShops.map((shop) => (
-                  <TableRow key={shop.id} data-testid={`shop-row-${shop.id}`}>
+                  <TableRow key={shop.id} className="transition-colors hover:bg-muted/50" data-testid={`shop-row-${shop.id}`}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10">

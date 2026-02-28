@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchList } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -12,9 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import {
   Plus, ClipboardList, Clock, Package, CheckCircle2,
-  Truck, CreditCard, Search, Filter, Wallet
+  CreditCard, Search, Filter, Wallet
 } from "lucide-react";
 import PaymentGatewaySelector from "@/components/payment-gateway";
 
@@ -133,49 +135,44 @@ export default function OrdersPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Orders Management</h1>
-          <p className="text-muted-foreground">
-            Track orders from salesperson through delivery
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {isCutoffPassed && (
-            <Badge variant="destructive" className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              Past 4 PM Cutoff
-            </Badge>
-          )}
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Order
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Create New Order</DialogTitle>
-              </DialogHeader>
-              <OrderForm
-                shops={shops}
-                salespersons={salespersons}
-                onSubmit={(data) => createOrder.mutate(data)}
-                isLoading={createOrder.isPending}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      <PageHeader
+        title="Orders Management"
+        description="Track orders from salesperson through delivery"
+      >
+        {isCutoffPassed && (
+          <Badge variant="destructive" className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            Past 4 PM Cutoff
+          </Badge>
+        )}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              New Order
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Create New Order</DialogTitle>
+            </DialogHeader>
+            <OrderForm
+              shops={shops}
+              salespersons={salespersons}
+              onSubmit={(data) => createOrder.mutate(data)}
+              isLoading={createOrder.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatMini label="Total Orders" value={stats.total} icon={ClipboardList} />
-        <StatMini label="Pending" value={stats.pending} icon={Clock} />
-        <StatMini label="Processing" value={stats.processing} icon={Package} />
-        <StatMini label="Delivered" value={stats.delivered} icon={CheckCircle2} />
-        <StatMini label="Total Value" value={`KES ${stats.totalValue.toLocaleString()}`} icon={CreditCard} />
+        <StatCard title="Total Orders" value={stats.total} icon={ClipboardList} />
+        <StatCard title="Pending" value={stats.pending} icon={Clock} />
+        <StatCard title="Processing" value={stats.processing} icon={Package} />
+        <StatCard title="Delivered" value={stats.delivered} icon={CheckCircle2} />
+        <StatCard title="Total Value" value={`KES ${stats.totalValue.toLocaleString()}`} icon={CreditCard} />
       </div>
 
       {/* Filters */}
@@ -224,13 +221,13 @@ export default function OrdersPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50">
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Loading orders...
                   </TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50">
                   <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     No orders found
                   </TableCell>
@@ -239,7 +236,7 @@ export default function OrdersPage() {
                 filtered.map((order: any) => {
                   const nextStatus = getNextStatus(order.status);
                   return (
-                    <TableRow key={order.id}>
+                    <TableRow key={order.id} className="transition-colors hover:bg-muted/50">
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
                       <TableCell>{getShopName(order.shopId)}</TableCell>
                       <TableCell>{getSalespersonName(order.salespersonId)}</TableCell>
@@ -321,22 +318,6 @@ function getNextStatus(current: string): string | null {
   const idx = flow.indexOf(current);
   if (idx === -1 || idx >= flow.length - 1) return null;
   return flow[idx + 1];
-}
-
-function StatMini({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 
 function OrderForm({

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchList } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -169,74 +171,71 @@ export default function PaymentsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Payments & Finance</h1>
-          <p className="text-muted-foreground">M-Pesa, Flutterwave, Crypto & cash payments</p>
-        </div>
-        <div className="flex gap-2">
-          <Dialog open={gatewayDialogOpen} onOpenChange={(open) => {
-            setGatewayDialogOpen(open);
-            if (!open) setSelectedOrderForPayment(null);
-          }}>
-            <DialogTrigger asChild>
-              <Button variant="default">
-                <Shield className="h-4 w-4 mr-2" /> Pay via Gateway
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Initiate Payment</DialogTitle>
-              </DialogHeader>
-              {!selectedOrderForPayment ? (
-                <OrderSelectorForPayment
-                  orders={eligibleOrders}
-                  shops={shops}
-                  onSelect={(order) => setSelectedOrderForPayment(order)}
-                />
-              ) : (
-                <PaymentGatewaySelector
-                  orderId={selectedOrderForPayment.id}
-                  orderNumber={selectedOrderForPayment.orderNumber}
-                  amount={selectedOrderForPayment.totalAmount || 0}
-                  customerPhone={getShopPhoneForOrder(selectedOrderForPayment.id)}
-                  customerName={getShopForOrder(selectedOrderForPayment.id)}
-                  onPaymentCreated={() => {
-                    queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
-                  }}
-                  onClose={() => {
-                    setSelectedOrderForPayment(null);
-                    setGatewayDialogOpen(false);
-                  }}
-                />
-              )}
-            </DialogContent>
-          </Dialog>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" /> Manual Record
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Record Manual Payment</DialogTitle></DialogHeader>
-              <ManualPaymentForm
-                orders={orders}
+      <PageHeader
+        title="Payments & Finance"
+        description="M-Pesa, Flutterwave, Crypto & cash payments"
+      >
+        <Dialog open={gatewayDialogOpen} onOpenChange={(open) => {
+          setGatewayDialogOpen(open);
+          if (!open) setSelectedOrderForPayment(null);
+        }}>
+          <DialogTrigger asChild>
+            <Button variant="default">
+              <Shield className="h-4 w-4 mr-2" /> Pay via Gateway
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Initiate Payment</DialogTitle>
+            </DialogHeader>
+            {!selectedOrderForPayment ? (
+              <OrderSelectorForPayment
+                orders={eligibleOrders}
                 shops={shops}
-                onSubmit={(data) => createPayment.mutate(data)}
-                isLoading={createPayment.isPending}
+                onSelect={(order) => setSelectedOrderForPayment(order)}
               />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+            ) : (
+              <PaymentGatewaySelector
+                orderId={selectedOrderForPayment.id}
+                orderNumber={selectedOrderForPayment.orderNumber}
+                amount={selectedOrderForPayment.totalAmount || 0}
+                customerPhone={getShopPhoneForOrder(selectedOrderForPayment.id)}
+                customerName={getShopForOrder(selectedOrderForPayment.id)}
+                onPaymentCreated={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/payments"] });
+                }}
+                onClose={() => {
+                  setSelectedOrderForPayment(null);
+                  setGatewayDialogOpen(false);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline">
+              <Plus className="h-4 w-4 mr-2" /> Manual Record
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Record Manual Payment</DialogTitle></DialogHeader>
+            <ManualPaymentForm
+              orders={orders}
+              shops={shops}
+              onSubmit={(data) => createPayment.mutate(data)}
+              isLoading={createPayment.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatMini label="Total Payments" value={stats.total} icon={CreditCard} />
-        <StatMini label="Pending / Processing" value={stats.pending} icon={Clock} />
-        <StatMini label="Confirmed" value={stats.confirmed} icon={CheckCircle2} />
-        <StatMini label="Confirmed Total" value={`KES ${stats.totalConfirmed.toLocaleString()}`} icon={DollarSign} />
+        <StatCard title="Total Payments" value={stats.total} icon={CreditCard} />
+        <StatCard title="Pending / Processing" value={stats.pending} icon={Clock} />
+        <StatCard title="Confirmed" value={stats.confirmed} icon={CheckCircle2} />
+        <StatCard title="Confirmed Total" value={`KES ${stats.totalConfirmed.toLocaleString()}`} icon={DollarSign} />
       </div>
 
       {/* Method breakdown */}
@@ -294,16 +293,16 @@ export default function PaymentsPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
               ) : (
                 filtered.map((p: any) => {
                   const method = p.paymentMethod || "cash";
                   const MethodIcon = methodIcons[method] || DollarSign;
                   const ref = p.mpesaReceiptNumber || p.mpesaReference || p.flutterwaveRef || p.cryptoTxHash || "—";
                   return (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} className="transition-colors hover:bg-muted/50">
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <MethodIcon className="h-4 w-4" />
@@ -362,22 +361,6 @@ export default function PaymentsPage() {
 }
 
 // ============ Sub-components ============
-
-function StatMini({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
 
 function MethodBadge({ method, count }: { method: string; count: number }) {
   const Icon = methodIcons[method] || DollarSign;

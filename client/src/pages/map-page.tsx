@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MapView } from "@/components/map-view";
-import { Store, Truck, Search, Filter, Layers, Eye, EyeOff } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { Store, Search, Layers, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import type { Shop, Driver } from "@shared/schema";
 
@@ -38,28 +39,41 @@ export default function MapPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full">
-        <div className="w-80 border-r p-4">
-          <Skeleton className="h-10 w-full" />
-          <div className="mt-4 space-y-3">
-            {[1, 2, 3, 4].map(i => (
-              <Skeleton key={i} className="h-16" />
-            ))}
-          </div>
+      <div className="flex flex-col h-full">
+        <div className="shrink-0 border-b px-6 py-4">
+          <Skeleton className="h-8 w-32 mb-1" />
+          <Skeleton className="h-4 w-64" />
         </div>
-        <div className="flex-1">
-          <Skeleton className="h-full" />
+        <div className="flex flex-1 min-h-0">
+          <div className="w-80 border-r p-4">
+            <Skeleton className="h-10 w-full" />
+            <div className="mt-4 space-y-3">
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+          </div>
+          <div className="flex-1">
+            <Skeleton className="h-full" />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-full" data-testid="map-page">
-      {/* Sidebar */}
-      <div className="flex w-80 flex-col border-r bg-background">
-        {/* Search and Filters */}
-        <div className="space-y-3 border-b p-4">
+    <div className="flex flex-col h-full" data-testid="map-page">
+      <div className="shrink-0 border-b px-6 py-4 bg-background">
+        <PageHeader
+          title="Map"
+          description="View shops and drivers on the map"
+        />
+      </div>
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar */}
+        <div className="flex w-80 flex-col border-r bg-background">
+          {/* Search and Filters */}
+          <div className="space-y-3 border-b p-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -175,18 +189,19 @@ export default function MapPage() {
             </div>
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Map */}
-      <div className="flex-1">
-        <MapView
-          shops={displayedShops}
-          drivers={displayedDrivers}
-          selectedShopId={selectedShop?.id}
-          onShopClick={setSelectedShop}
-          showAreaBoundaries={showBoundaries}
-          height="100%"
-        />
+        {/* Map */}
+        <div className="flex-1">
+          <MapView
+            shops={displayedShops}
+            drivers={displayedDrivers}
+            selectedShopId={selectedShop?.id}
+            onShopClick={setSelectedShop}
+            showAreaBoundaries={showBoundaries}
+            height="100%"
+          />
+        </div>
       </div>
     </div>
   );

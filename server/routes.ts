@@ -18,7 +18,8 @@ import { insertShopSchema, insertDriverSchema, insertRouteSchema, insertTargetSc
   insertProductSchema, insertSupplierSchema, insertProcurementSchema,
   insertSalespersonSchema, insertOrderSchema, insertOrderItemSchema,
   insertDispatchSchema, insertParcelSchema, insertPaymentSchema,
-  insertStockMovementSchema, insertInventorySchema
+  insertStockMovementSchema, insertInventorySchema,
+  type Shop
 } from "@shared/schema";
 import { setupAuth, registerAuthRoutes, ensureAdminUser, isAuthenticated, isAdmin, isManager, hashPassword } from "./auth";
 import { getAllUsers, createUser, updateUser, deleteUserById } from "./auth";
@@ -163,8 +164,10 @@ export async function registerRoutes(
   // ============ SHOPS ============
   app.get("/api/shops", isAuthenticated, async (req, res) => {
     try {
-      const { page, limit } = parsePagination(req);
-      const allShops = await storage.getAllShops();
+      const { page, limit, offset } = parsePagination(req);
+      const search = req.query.search as string | undefined;
+      const status = req.query.status as string | undefined;
+      const allShops = await storage.getAllShops({ limit: limit + 1, offset, search, status });
       res.json(paginatedResponse(allShops, page, limit));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch shops" });
@@ -187,7 +190,7 @@ export async function registerRoutes(
     try {
       const parsed = insertShopSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid shop data", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid shop data", details: parsed.error.issues });
       }
       const shop = await storage.createShop(parsed.data);
       res.status(201).json(shop);
@@ -199,7 +202,7 @@ export async function registerRoutes(
   app.patch("/api/shops/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertShopSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const shop = await storage.updateShop(req.params.id, parsed.data);
       if (!shop) {
         return res.status(404).json({ error: "Shop not found" });
@@ -229,10 +232,10 @@ export async function registerRoutes(
       if (!Array.isArray(shops)) {
         return res.status(400).json({ error: "Invalid shops payload" });
       }
-      const created: any[] = [];
+      const created: Shop[] = [];
       for (const s of shops) {
         const parsed = insertShopSchema.safeParse(s);
-        if (!parsed.success) continue; // skip invalid entries
+        if (!parsed.success) continue;
         const shop = await storage.createShop(parsed.data);
         created.push(shop);
       }
@@ -269,7 +272,7 @@ export async function registerRoutes(
     try {
       const parsed = insertDriverSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid driver data", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid driver data", details: parsed.error.issues });
       }
       const driver = await storage.createDriver(parsed.data);
       res.status(201).json(driver);
@@ -281,7 +284,7 @@ export async function registerRoutes(
   app.patch("/api/drivers/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertDriverSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const driver = await storage.updateDriver(req.params.id, parsed.data);
       if (!driver) {
         return res.status(404).json({ error: "Driver not found" });
@@ -331,7 +334,7 @@ export async function registerRoutes(
     try {
       const parsed = insertRouteSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid route data", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid route data", details: parsed.error.issues });
       }
       const route = await storage.createRoute(parsed.data);
       res.status(201).json(route);
@@ -343,7 +346,7 @@ export async function registerRoutes(
   app.patch("/api/routes/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertRouteSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const route = await storage.updateRoute(req.params.id, parsed.data);
       if (!route) {
         return res.status(404).json({ error: "Route not found" });
@@ -393,7 +396,7 @@ export async function registerRoutes(
     try {
       const parsed = insertTargetSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ error: "Invalid target data", details: parsed.error.errors });
+        return res.status(400).json({ error: "Invalid target data", details: parsed.error.issues });
       }
       const target = await storage.createTarget(parsed.data);
       res.status(201).json(target);
@@ -405,7 +408,7 @@ export async function registerRoutes(
   app.patch("/api/targets/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertTargetSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const target = await storage.updateTarget(req.params.id, parsed.data);
       if (!target) {
         return res.status(404).json({ error: "Target not found" });
@@ -449,14 +452,14 @@ export async function registerRoutes(
   app.post("/api/products", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertProductSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createProduct(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create product" }); }
   });
   app.patch("/api/products/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertProductSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const p = await storage.updateProduct(req.params.id, parsed.data);
       if (!p) return res.status(404).json({ error: "Product not found" });
       res.json(p);
@@ -480,7 +483,7 @@ export async function registerRoutes(
   app.post("/api/inventory", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertInventorySchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.json(await storage.upsertInventory(parsed.data));
     } catch { res.status(500).json({ error: "Failed to update inventory" }); }
   });
@@ -496,7 +499,7 @@ export async function registerRoutes(
   app.post("/api/stock-movements", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertStockMovementSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createStockMovement(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create stock movement" }); }
   });
@@ -512,14 +515,14 @@ export async function registerRoutes(
   app.post("/api/suppliers", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertSupplierSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createSupplier(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create supplier" }); }
   });
   app.patch("/api/suppliers/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertSupplierSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const s = await storage.updateSupplier(req.params.id, parsed.data);
       if (!s) return res.status(404).json({ error: "Supplier not found" });
       res.json(s);
@@ -543,14 +546,14 @@ export async function registerRoutes(
   app.post("/api/procurements", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertProcurementSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createProcurement(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create procurement" }); }
   });
   app.patch("/api/procurements/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertProcurementSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const p = await storage.updateProcurement(req.params.id, parsed.data);
       if (!p) return res.status(404).json({ error: "Procurement not found" });
       res.json(p);
@@ -568,14 +571,14 @@ export async function registerRoutes(
   app.post("/api/salespersons", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertSalespersonSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createSalesperson(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create salesperson" }); }
   });
   app.patch("/api/salespersons/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertSalespersonSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const sp = await storage.updateSalesperson(req.params.id, parsed.data);
       if (!sp) return res.status(404).json({ error: "Salesperson not found" });
       res.json(sp);
@@ -606,14 +609,14 @@ export async function registerRoutes(
   app.post("/api/orders", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertOrderSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createOrder(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create order" }); }
   });
   app.patch("/api/orders/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertOrderSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const o = await storage.updateOrder(req.params.id, parsed.data);
       if (!o) return res.status(404).json({ error: "Order not found" });
       res.json(o);
@@ -634,7 +637,7 @@ export async function registerRoutes(
   app.post("/api/order-items", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertOrderItemSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createOrderItem(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create order item" }); }
   });
@@ -657,14 +660,14 @@ export async function registerRoutes(
   app.post("/api/dispatches", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertDispatchSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createDispatch(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create dispatch" }); }
   });
   app.patch("/api/dispatches/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertDispatchSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const d = await storage.updateDispatch(req.params.id, parsed.data);
       if (!d) return res.status(404).json({ error: "Dispatch not found" });
       res.json(d);
@@ -681,14 +684,14 @@ export async function registerRoutes(
   app.post("/api/parcels", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertParcelSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createParcel(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create parcel" }); }
   });
   app.patch("/api/parcels/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertParcelSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const p = await storage.updateParcel(req.params.id, parsed.data);
       if (!p) return res.status(404).json({ error: "Parcel not found" });
       res.json(p);
@@ -706,14 +709,14 @@ export async function registerRoutes(
   app.post("/api/payments", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertPaymentSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       res.status(201).json(await storage.createPayment(parsed.data));
     } catch { res.status(500).json({ error: "Failed to create payment" }); }
   });
   app.patch("/api/payments/:id", isAuthenticated, async (req, res) => {
     try {
       const parsed = insertPaymentSchema.partial().safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.errors });
+      if (!parsed.success) return res.status(400).json({ error: "Invalid data", details: parsed.error.issues });
       const p = await storage.updatePayment(req.params.id, parsed.data);
       if (!p) return res.status(404).json({ error: "Payment not found" });
       res.json(p);
@@ -768,11 +771,11 @@ export async function registerRoutes(
             subject: "Your Veew Distributors Account",
             html: `
               <h2>Welcome to Veew Distributors!</h2>
-              <p>Your account has been created with the following credentials:</p>
+              <p>Your account has been created.</p>
               <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Password:</strong> ${password}</p>
-              <p>Please log in and change your password as soon as possible.</p>
-              <p><a href="${process.env.CORS_ORIGIN || 'http://localhost:5000'}/login">Login to Veew Distributors</a></p>
+              <p>Your temporary password has been set by an administrator. For security, please reset your password immediately using the link below.</p>
+              <p><a href="${process.env.CORS_ORIGIN || 'http://localhost:5000'}/forgot-password">Reset Your Password</a></p>
+              <p>If you did not expect this account, please ignore this email.</p>
             `,
           });
         } catch (emailError) {
@@ -825,11 +828,11 @@ export async function registerRoutes(
             subject: "Your Veew Distributors Account",
             html: `
               <h2>Welcome to Veew Distributors!</h2>
-              <p>Your account has been created with the following credentials:</p>
+              <p>Your account has been created.</p>
               <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Password:</strong> ${password}</p>
-              <p>Please log in and change your password as soon as possible.</p>
-              <p><a href="${process.env.CORS_ORIGIN || 'http://localhost:5000'}/login">Login to Veew Distributors</a></p>
+              <p>Your temporary password has been set by a manager. For security, please reset your password immediately using the link below.</p>
+              <p><a href="${process.env.CORS_ORIGIN || 'http://localhost:5000'}/forgot-password">Reset Your Password</a></p>
+              <p>If you did not expect this account, please ignore this email.</p>
             `,
           });
         } catch (emailError) {
@@ -845,7 +848,7 @@ export async function registerRoutes(
   app.patch("/api/admin/users/:id", isAdmin, async (req, res) => {
     try {
       const { firstName, lastName, role, password } = req.body;
-      const updates: Record<string, any> = { updatedAt: new Date() };
+      const updates: Record<string, string | Date> = { updatedAt: new Date() };
       if (firstName !== undefined) updates.firstName = firstName;
       if (lastName !== undefined) updates.lastName = lastName;
 
@@ -867,6 +870,7 @@ export async function registerRoutes(
       const userForUpdate = allUsersForUpdate.find((u) => u.id === req.params.id);
       if (!userForUpdate) return res.status(404).json({ error: "User not found" });
       
+      if (!userForUpdate.email) return res.status(400).json({ error: "User has no email" });
       const updated = await updateUser(userForUpdate.email, updates);
       if (!updated) return res.status(404).json({ error: "User not found" });
 
@@ -972,17 +976,6 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating setting:", error);
       res.status(500).json({ error: "Failed to update setting" });
-    }
-  });
-
-  app.get("/api/admin/settings/audit", isAdmin, (req, res) => {
-    try {
-      const limit = parseInt(req.query.limit as string) || 100;
-      const auditLog = settingsManager.getAuditLog(limit);
-      res.json({ auditLog });
-    } catch (error) {
-      console.error("Error fetching audit log:", error);
-      res.status(500).json({ error: "Failed to fetch audit log" });
     }
   });
 

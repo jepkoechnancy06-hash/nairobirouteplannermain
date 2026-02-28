@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import {
   Plus, Package, Search, AlertTriangle, ArrowUpRight,
   ArrowDownRight, Warehouse, RefreshCw
@@ -120,48 +121,45 @@ export default function InventoryPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Inventory Management</h1>
-          <p className="text-muted-foreground">Track stock levels, receive and issue goods</p>
-        </div>
-        <div className="flex gap-2">
-          <Dialog open={movementDialogOpen} onOpenChange={setMovementDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline"><RefreshCw className="h-4 w-4 mr-2" /> Record Movement</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Record Stock Movement</DialogTitle></DialogHeader>
-              <StockMovementForm
-                products={products}
-                onSubmit={(data) => createStockMovement.mutate(data)}
-                isLoading={createStockMovement.isPending}
-              />
-            </DialogContent>
-          </Dialog>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" /> Initialize Stock</Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Initialize Inventory for Product</DialogTitle></DialogHeader>
-              <InventoryForm
-                products={products}
-                existingInventory={inventory}
-                onSubmit={(data) => createInventory.mutate(data)}
-                isLoading={createInventory.isPending}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      <PageHeader
+        title="Inventory Management"
+        description="Track stock levels, receive and issue goods"
+      >
+        <Dialog open={movementDialogOpen} onOpenChange={setMovementDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline"><RefreshCw className="h-4 w-4 mr-2" /> Record Movement</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Record Stock Movement</DialogTitle></DialogHeader>
+            <StockMovementForm
+              products={products}
+              onSubmit={(data) => createStockMovement.mutate(data)}
+              isLoading={createStockMovement.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogTrigger asChild>
+            <Button><Plus className="h-4 w-4 mr-2" /> Initialize Stock</Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader><DialogTitle>Initialize Inventory for Product</DialogTitle></DialogHeader>
+            <InventoryForm
+              products={products}
+              existingInventory={inventory}
+              onSubmit={(data) => createInventory.mutate(data)}
+              isLoading={createInventory.isPending}
+            />
+          </DialogContent>
+        </Dialog>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatMini label="Products Tracked" value={inventory.length} icon={Package} />
-        <StatMini label="Total Units" value={totalItems} icon={Warehouse} />
-        <StatMini label="Low Stock" value={lowStockCount} icon={AlertTriangle} />
-        <StatMini label="Movements Today" value={stockMovements.length} icon={RefreshCw} />
+        <StatCard title="Products Tracked" value={inventory.length} icon={Package} />
+        <StatCard title="Total Units" value={totalItems} icon={Warehouse} />
+        <StatCard title="Low Stock" value={lowStockCount} icon={AlertTriangle} iconColor="text-amber-500" />
+        <StatCard title="Movements Today" value={stockMovements.length} icon={RefreshCw} />
       </div>
 
       {/* Search */}
@@ -189,15 +187,15 @@ export default function InventoryPage() {
             </TableHeader>
             <TableBody>
               {(isLoading || productsLoading) ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No inventory records</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No inventory records</TableCell></TableRow>
               ) : (
                 filtered.map((inv: any) => {
                   const prod = getProduct(inv.productId);
                   const lowStock = inv.quantity <= (prod?.reorderLevel || 10);
                   return (
-                    <TableRow key={inv.id}>
+                    <TableRow key={inv.id} className="transition-colors hover:bg-muted/50">
                       <TableCell className="font-medium">{prod?.name || inv.productId}</TableCell>
                       <TableCell><Badge variant="outline">{prod?.sku || "—"}</Badge></TableCell>
                       <TableCell className="text-right">
@@ -252,10 +250,10 @@ export default function InventoryPage() {
             </TableHeader>
             <TableBody>
               {stockMovements.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">No movements recorded</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">No movements recorded</TableCell></TableRow>
               ) : (
                 stockMovements.slice(0, 20).map((m: any) => (
-                  <TableRow key={m.id}>
+                  <TableRow key={m.id} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">{getProductName(m.productId)}</TableCell>
                     <TableCell>
                       <Badge className={m.movementType === "received" ? "bg-green-100 text-green-800" : m.movementType === "issued" ? "bg-red-100 text-red-800" : "bg-blue-100 text-blue-800"}>
@@ -274,22 +272,6 @@ export default function InventoryPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatMini({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

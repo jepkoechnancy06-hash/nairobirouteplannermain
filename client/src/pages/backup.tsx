@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -91,11 +93,13 @@ export default function BackupPage() {
   };
 
   return (
-    <AdminLayout
-      title="Data Backup"
-      description="Download and manage your data backups"
-    >
-      <div className="space-y-6">
+    <AdminLayout>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Data Backup"
+          description="Download and manage your data backups"
+        />
+
         {/* Action Cards */}
         <div className="grid gap-6 md:grid-cols-3">
           <Card
@@ -155,23 +159,13 @@ export default function BackupPage() {
             </CardContent>
           </Card>
 
-          <Card
-            className="transition-colors hover:border-primary/50"
-            data-testid="card-backup-stats"
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Statistics</CardTitle>
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
-                <HardDrive className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold" data-testid="text-backup-count">
-                {backupHistory.length}
-              </div>
-              <p className="text-xs text-muted-foreground">Total backups created</p>
-            </CardContent>
-          </Card>
+          <StatCard
+            title="Statistics"
+            value={backupHistory.length}
+            subtitle="Total backups created"
+            icon={HardDrive}
+            iconColor="text-muted-foreground"
+          />
         </div>
 
         {/* History Table */}
@@ -211,7 +205,11 @@ export default function BackupPage() {
                 </TableHeader>
                 <TableBody>
                   {backupHistory.map((backup) => (
-                    <TableRow key={backup.id} data-testid={`row-backup-${backup.id}`}>
+                    <TableRow
+                      key={backup.id}
+                      data-testid={`row-backup-${backup.id}`}
+                      className="transition-colors hover:bg-muted/50"
+                    >
                       <TableCell className="font-medium">
                         {formatDate(backup.createdAt)}
                       </TableCell>

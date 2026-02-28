@@ -12,7 +12,7 @@ export interface ApiError extends Error {
   statusCode?: number;
   status?: number;
   code?: string;
-  details?: any;
+  details?: unknown;
   isOperational?: boolean;
 }
 
@@ -20,14 +20,14 @@ export class AppError extends Error implements ApiError {
   public statusCode: number;
   public status: number;
   public code: string;
-  public details?: any;
+  public details?: unknown;
   public isOperational: boolean;
 
   constructor(
     message: string,
     statusCode: number = 500,
     code: string = "INTERNAL_ERROR",
-    details?: any,
+    details?: unknown,
     isOperational: boolean = true
   ) {
     super(message);
@@ -45,7 +45,7 @@ export class AppError extends Error implements ApiError {
 
 // Predefined error types
 export class ValidationError extends AppError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 400, "VALIDATION_ERROR", details);
   }
 }
@@ -69,7 +69,7 @@ export class NotFoundError extends AppError {
 }
 
 export class ConflictError extends AppError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 409, "CONFLICT_ERROR", details);
   }
 }
@@ -81,7 +81,7 @@ export class RateLimitError extends AppError {
 }
 
 export class DatabaseError extends AppError {
-  constructor(message: string, details?: any) {
+  constructor(message: string, details?: unknown) {
     super(message, 500, "DATABASE_ERROR", details);
   }
 }
@@ -101,7 +101,7 @@ export function logError(error: ApiError, req: Request): void {
     url: req.originalUrl,
     ip: req.ip,
     userAgent: req.get("User-Agent"),
-    userId: (req as any).user?.id,
+    userId: (req.session as { userId?: string })?.userId,
     error: {
       name: error.name,
       message: error.message,
@@ -186,7 +186,7 @@ export function errorHandler(
 
 // Async error wrapper for route handlers
 export function asyncHandler(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<void>
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
@@ -201,15 +201,17 @@ export function notFoundHandler(req: Request, res: Response, next: NextFunction)
 
 // Global unhandled promise rejection handler
 export function setupUnhandledRejectionHandler(): void {
-  process.on("unhandledRejection", (reason: any, promise: Promise<any>) => {
+  process.on("unhandledRejection", (reason: unknown) => {
+    const err = reason instanceof Error ? reason : new Error(String(reason));
     console.error("UNHANDLED_REJECTION:", {
-      reason: reason?.message || reason,
-      stack: reason?.stack,
-      promise: promise.toString(),
+      reason: err.message,
+      stack: err.stack,
     });
-    // Don't exit the process in production, just log it
-    if (process.env.NODE_ENV !== "production") {
+    // Only exit in production; during tests or development we want the process to stay alive
+    if (process.env.NODE_ENV === "production") {
       process.exit(1);
+    } else {
+      console.warn("Continuing despite unhandled rejection (non-production environment)");
     }
   });
 
@@ -218,8 +220,12 @@ export function setupUnhandledRejectionHandler(): void {
       message: error.message,
       stack: error.stack,
     });
-    // Graceful shutdown
-    console.log("Shutting down due to uncaught exception...");
-    process.exit(1);
+    // Graceful shutdown in production only
+    if (process.env.NODE_ENV === "production") {
+      console.log("Shutting down due to uncaught exception...");
+      process.exit(1);
+    } else {
+      console.warn("Ignoring uncaught exception in non-production environment");
+    }
   });
 }

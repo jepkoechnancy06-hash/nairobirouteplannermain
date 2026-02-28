@@ -1,13 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "wouter";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatCard } from "@/components/stat-card";
 import { MapView } from "@/components/map-view";
-import { Store, Truck, Route, Target, TrendingUp, Clock, MapPin, ClipboardList, PackageCheck, CreditCard } from "lucide-react";
+import {
+  Store, Truck, Route, Target, TrendingUp, Clock, MapPin, ClipboardList,
+  PackageCheck, CreditCard, Plus, ArrowRight, Activity,
+} from "lucide-react";
 import type { Shop, Driver, Route as RouteType, Target as TargetType } from "@shared/schema";
 import { fetchList } from "@/lib/queryClient";
+
+function QuickAction({ href, icon: Icon, label }: { href: string; icon: React.ElementType; label: string }) {
+  return (
+    <Button variant="outline" size="sm" asChild className="h-9 gap-2">
+      <Link href={href}>
+        <Icon className="h-4 w-4" />
+        {label}
+      </Link>
+    </Button>
+  );
+}
 
 export default function Dashboard() {
   const { data: shops = [], isLoading: shopsLoading } = useQuery<Shop[]>({
@@ -43,21 +59,18 @@ export default function Dashboard() {
 
   const isLoading = shopsLoading || driversLoading || routesLoading || targetsLoading;
 
-  // Calculate statistics
-  const activeShops = shops.filter(s => s.status === "active").length;
-  const availableDrivers = drivers.filter(d => d.status === "available").length;
-  const onRouteDrivers = drivers.filter(d => d.status === "on_route").length;
-  const todayRoutes = routes.filter(r => r.date === new Date().toISOString().split("T")[0]).length;
-  const completedRoutes = routes.filter(r => r.status === "completed").length;
+  const activeShops = shops.filter((s) => s.status === "active").length;
+  const availableDrivers = drivers.filter((d) => d.status === "available").length;
+  const onRouteDrivers = drivers.filter((d) => d.status === "on_route").length;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayRoutes = routes.filter((r) => r.date === todayStr);
+  const completedRoutes = routes.filter((r) => r.status === "completed").length;
 
-  // Calculate target progress
-  const currentTargets = targets.filter(t => {
-    const today = new Date().toISOString().split("T")[0];
-    return t.startDate <= today && t.endDate >= today;
-  });
-
-  const totalTargetShops = currentTargets.reduce((sum, t) => sum + t.targetShops, 0);
-  const totalCompletedShops = currentTargets.reduce((sum, t) => sum + t.completedShops, 0);
+  const currentTargets = targets.filter(
+    (t) => t.startDate <= todayStr && t.endDate >= todayStr
+  );
+  const totalTargetShops = currentTargets.reduce((s, t) => s + t.targetShops, 0);
+  const totalCompletedShops = currentTargets.reduce((s, t) => s + t.completedShops, 0);
   const targetProgress = totalTargetShops > 0 ? Math.round((totalCompletedShops / totalTargetShops) * 100) : 0;
 
   if (isLoading) {
@@ -68,7 +81,7 @@ export default function Dashboard() {
           <Skeleton className="mt-2 h-4 w-64" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-28" />
           ))}
         </div>
@@ -82,15 +95,22 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6 p-6" data-testid="dashboard-page">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Overview of Veew Distributors operations in Huruma/Mathare
-        </p>
+      {/* Header with Quick Actions */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-muted-foreground">
+            Overview of operations in Huruma & Mathare
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <QuickAction href="/shops" icon={Plus} label="Add Shop" />
+          <QuickAction href="/orders" icon={ClipboardList} label="New Order" />
+          <QuickAction href="/dispatch" icon={PackageCheck} label="Dispatch" />
+        </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Primary Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Shops"
@@ -108,7 +128,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Today's Routes"
-          value={todayRoutes}
+          value={todayRoutes.length}
           subtitle={`${completedRoutes} completed overall`}
           icon={Route}
           iconColor="text-chart-3"
@@ -122,54 +142,56 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Order & Dispatch Stats */}
+      {/* Secondary Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Today's Orders"
-          value={orders.filter((o: any) => o.createdAt && new Date(o.createdAt).toDateString() === new Date().toDateString()).length || orders.length}
-          subtitle={`${orders.filter((o: any) => o.status === "pending").length} pending`}
+          title="Orders"
+          value={orders.length}
+          subtitle={`${(orders as any[]).filter((o) => o.status === "pending").length} pending`}
           icon={ClipboardList}
           iconColor="text-blue-500"
         />
         <StatCard
           title="Active Dispatches"
-          value={dispatches.filter((d: any) => d.status !== "completed").length}
-          subtitle={`${dispatches.filter((d: any) => d.status === "packing").length} packing, ${dispatches.filter((d: any) => d.status === "in_transit" || d.status === "flagged_off").length} in transit`}
+          value={(dispatches as any[]).filter((d) => d.status !== "completed").length}
+          subtitle={`${(dispatches as any[]).filter((d) => d.status === "packing").length} packing, ${(dispatches as any[]).filter((d) => d.status === "in_transit" || d.status === "flagged_off").length} in transit`}
           icon={PackageCheck}
           iconColor="text-amber-500"
         />
         <StatCard
           title="Order Value"
-          value={`KES ${orders.reduce((s: number, o: any) => s + (o.totalAmount || 0), 0).toLocaleString()}`}
-          subtitle={`${orders.filter((o: any) => o.status === "delivered" || o.status === "paid").length} delivered`}
+          value={`KES ${(orders as any[]).reduce((s: number, o: any) => s + (o.totalAmount || 0), 0).toLocaleString()}`}
+          subtitle={`${(orders as any[]).filter((o) => o.status === "delivered" || o.status === "paid").length} delivered`}
           icon={TrendingUp}
           iconColor="text-green-500"
         />
         <StatCard
           title="Payments"
-          value={`KES ${payments.filter((p: any) => p.status === "confirmed").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`}
-          subtitle={`${payments.filter((p: any) => p.status === "pending" || p.status === "received").length} pending confirmation`}
+          value={`KES ${(payments as any[]).filter((p) => p.status === "confirmed").reduce((s: number, p: any) => s + (p.amount || 0), 0).toLocaleString()}`}
+          subtitle={`${(payments as any[]).filter((p) => p.status === "pending" || p.status === "received").length} pending`}
           icon={CreditCard}
           iconColor="text-emerald-500"
         />
       </div>
 
-      {/* Main Content */}
+      {/* Map & Targets */}
       <div className="grid gap-6 lg:grid-cols-2">
-        {/* Map Preview */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle className="text-base font-medium">Coverage Area</CardTitle>
+            <div>
+              <CardTitle className="text-base font-semibold">Coverage Area</CardTitle>
+              <CardDescription>Shop locations in Huruma & Mathare</CardDescription>
+            </div>
             <Badge variant="outline" className="font-normal">
               <MapPin className="mr-1 h-3 w-3" />
-              Huruma/Mathare
+              {shops.length} locations
             </Badge>
           </CardHeader>
           <CardContent className="p-0">
             <div className="h-72 overflow-hidden rounded-b-lg">
               <MapView
                 shops={shops.slice(0, 10)}
-                drivers={drivers.filter(d => d.currentLatitude && d.currentLongitude)}
+                drivers={drivers.filter((d) => d.currentLatitude && d.currentLongitude)}
                 showAreaBoundaries={true}
                 height="100%"
               />
@@ -177,31 +199,40 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Target Progress */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-            <CardTitle className="text-base font-medium">Active Targets</CardTitle>
-            <Badge variant="secondary" className="font-normal">
-              {currentTargets.length} active
-            </Badge>
+            <div>
+              <CardTitle className="text-base font-semibold">Active Targets</CardTitle>
+              <CardDescription>Driver performance tracking</CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-xs">
+              <Link href="/targets">
+                View All <ArrowRight className="h-3 w-3" />
+              </Link>
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3">
             {currentTargets.length === 0 ? (
               <div className="flex h-56 flex-col items-center justify-center text-center">
-                <Target className="h-10 w-10 text-muted-foreground/50" />
-                <p className="mt-3 text-sm text-muted-foreground">No active targets</p>
-                <p className="text-xs text-muted-foreground">Set targets for your drivers to track progress</p>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+                  <Target className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="mt-3 text-sm font-medium text-muted-foreground">No active targets</p>
+                <p className="text-xs text-muted-foreground">Set targets to track driver progress</p>
+                <Button variant="outline" size="sm" asChild className="mt-4">
+                  <Link href="/targets">Create Target</Link>
+                </Button>
               </div>
             ) : (
               currentTargets.slice(0, 4).map((target) => {
-                const driver = drivers.find(d => d.id === target.driverId);
-                const shopProgress = Math.round((target.completedShops / target.targetShops) * 100);
-                const deliveryProgress = Math.round((target.completedDeliveries / target.targetDeliveries) * 100);
-                
+                const driver = drivers.find((d) => d.id === target.driverId);
+                const shopPct = Math.round((target.completedShops / target.targetShops) * 100);
+                const deliveryPct = Math.round((target.completedDeliveries / target.targetDeliveries) * 100);
+
                 return (
-                  <div key={target.id} className="space-y-2 rounded-lg border p-3">
+                  <div key={target.id} className="space-y-2.5 rounded-lg border p-3 transition-colors hover:bg-muted/50">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2.5">
                         <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                           <Truck className="h-4 w-4 text-primary" />
                         </div>
@@ -210,23 +241,23 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground capitalize">{target.period} target</p>
                         </div>
                       </div>
-                      <Badge variant={shopProgress >= 80 ? "default" : "secondary"}>
-                        {shopProgress}%
+                      <Badge variant={shopPct >= 80 ? "default" : shopPct >= 50 ? "secondary" : "outline"}>
+                        {shopPct}%
                       </Badge>
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">Shops visited</span>
-                        <span>{target.completedShops}/{target.targetShops}</span>
+                        <span className="tabular-nums">{target.completedShops}/{target.targetShops}</span>
                       </div>
-                      <Progress value={shopProgress} className="h-1.5" />
+                      <Progress value={shopPct} className="h-1.5" />
                     </div>
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">Deliveries</span>
-                        <span>{target.completedDeliveries}/{target.targetDeliveries}</span>
+                        <span className="tabular-nums">{target.completedDeliveries}/{target.targetDeliveries}</span>
                       </div>
-                      <Progress value={deliveryProgress} className="h-1.5" />
+                      <Progress value={deliveryPct} className="h-1.5" />
                     </div>
                   </div>
                 );
@@ -236,22 +267,22 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Recent Activity */}
+      {/* Activity Panels */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent Shops */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">Recent Shops</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold">Recent Shops</CardTitle>
+            <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-xs">
+              <Link href="/shops">View All <ArrowRight className="h-3 w-3" /></Link>
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {shops.length === 0 ? (
-              <div className="flex h-32 flex-col items-center justify-center text-center">
-                <Store className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-sm text-muted-foreground">No shops added yet</p>
-              </div>
+              <EmptyState icon={Store} message="No shops added yet" />
             ) : (
               shops.slice(0, 5).map((shop) => (
-                <div key={shop.id} className="flex items-center gap-3" data-testid={`recent-shop-${shop.id}`}>
+                <div key={shop.id} className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50" data-testid={`recent-shop-${shop.id}`}>
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
                     <Store className="h-4 w-4 text-primary" />
                   </div>
@@ -270,88 +301,95 @@ export default function Dashboard() {
 
         {/* Driver Status */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">Driver Status</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold">Driver Status</CardTitle>
+            <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-xs">
+              <Link href="/drivers">View All <ArrowRight className="h-3 w-3" /></Link>
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2">
             {drivers.length === 0 ? (
-              <div className="flex h-32 flex-col items-center justify-center text-center">
-                <Truck className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-sm text-muted-foreground">No drivers added yet</p>
-              </div>
+              <EmptyState icon={Truck} message="No drivers added yet" />
             ) : (
-              drivers.slice(0, 5).map((driver) => (
-                <div key={driver.id} className="flex items-center gap-3" data-testid={`driver-status-${driver.id}`}>
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                    driver.status === "available" ? "bg-green-500/10" :
-                    driver.status === "on_route" ? "bg-blue-500/10" : "bg-gray-500/10"
-                  }`}>
-                    <Truck className={`h-4 w-4 ${
-                      driver.status === "available" ? "text-green-600" :
-                      driver.status === "on_route" ? "text-blue-600" : "text-gray-600"
-                    }`} />
+              drivers.slice(0, 5).map((driver) => {
+                const statusColor =
+                  driver.status === "available" ? "text-green-600 bg-green-500/10" :
+                  driver.status === "on_route" ? "text-blue-600 bg-blue-500/10" :
+                  "text-gray-600 bg-gray-500/10";
+                const [textColor, bgColor] = statusColor.split(" ");
+
+                return (
+                  <div key={driver.id} className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50" data-testid={`driver-status-${driver.id}`}>
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${bgColor}`}>
+                      <Truck className={`h-4 w-4 ${textColor}`} />
+                    </div>
+                    <div className="flex-1 overflow-hidden">
+                      <p className="truncate text-sm font-medium">{driver.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{driver.vehicleType} - {driver.vehiclePlate}</p>
+                    </div>
+                    <Badge variant={driver.status === "available" ? "default" : "secondary"} className="text-xs capitalize">
+                      {driver.status.replace("_", " ")}
+                    </Badge>
                   </div>
-                  <div className="flex-1 overflow-hidden">
-                    <p className="truncate text-sm font-medium">{driver.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{driver.vehicleType} - {driver.vehiclePlate}</p>
-                  </div>
-                  <Badge 
-                    variant={driver.status === "available" ? "default" : "secondary"} 
-                    className="text-xs capitalize"
-                  >
-                    {driver.status.replace("_", " ")}
-                  </Badge>
-                </div>
-              ))
+                );
+              })
             )}
           </CardContent>
         </Card>
 
         {/* Today's Routes */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium">Today's Routes</CardTitle>
+          <CardHeader className="flex flex-row items-center justify-between pb-3">
+            <CardTitle className="text-base font-semibold">Today's Routes</CardTitle>
+            <Button variant="ghost" size="sm" asChild className="h-8 gap-1 text-xs">
+              <Link href="/routes">View All <ArrowRight className="h-3 w-3" /></Link>
+            </Button>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {routes.filter(r => r.date === new Date().toISOString().split("T")[0]).length === 0 ? (
-              <div className="flex h-32 flex-col items-center justify-center text-center">
-                <Route className="h-8 w-8 text-muted-foreground/50" />
-                <p className="mt-2 text-sm text-muted-foreground">No routes planned for today</p>
-              </div>
+          <CardContent className="space-y-2">
+            {todayRoutes.length === 0 ? (
+              <EmptyState icon={Route} message="No routes planned for today" />
             ) : (
-              routes
-                .filter(r => r.date === new Date().toISOString().split("T")[0])
-                .slice(0, 5)
-                .map((route) => {
-                  const driver = drivers.find(d => d.id === route.driverId);
-                  return (
-                    <div key={route.id} className="flex items-center gap-3" data-testid={`route-${route.id}`}>
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                        route.status === "completed" ? "bg-green-500/10" :
-                        route.status === "in_progress" ? "bg-blue-500/10" : "bg-gray-500/10"
-                      }`}>
-                        <Route className={`h-4 w-4 ${
-                          route.status === "completed" ? "text-green-600" :
-                          route.status === "in_progress" ? "text-blue-600" : "text-gray-600"
-                        }`} />
-                      </div>
-                      <div className="flex-1 overflow-hidden">
-                        <p className="truncate text-sm font-medium">{route.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {driver?.name || "Unassigned"} - {route.shopIds.length} stops
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        {route.estimatedTime}m
-                      </div>
+              todayRoutes.slice(0, 5).map((route) => {
+                const driver = drivers.find((d) => d.id === route.driverId);
+                const statusColor =
+                  route.status === "completed" ? "text-green-600 bg-green-500/10" :
+                  route.status === "in_progress" ? "text-blue-600 bg-blue-500/10" :
+                  "text-gray-600 bg-gray-500/10";
+                const [textColor, bgColor] = statusColor.split(" ");
+
+                return (
+                  <div key={route.id} className="flex items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50" data-testid={`route-${route.id}`}>
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-full ${bgColor}`}>
+                      <Route className={`h-4 w-4 ${textColor}`} />
                     </div>
-                  );
-                })
+                    <div className="flex-1 overflow-hidden">
+                      <p className="truncate text-sm font-medium">{route.name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {driver?.name || "Unassigned"} - {route.shopIds.length} stops
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                      <Clock className="h-3 w-3" />
+                      {route.estimatedTime}m
+                    </div>
+                  </div>
+                );
+              })
             )}
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ icon: Icon, message }: { icon: React.ElementType; message: string }) {
+  return (
+    <div className="flex h-32 flex-col items-center justify-center text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+        <Icon className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <p className="mt-2 text-sm text-muted-foreground">{message}</p>
     </div>
   );
 }

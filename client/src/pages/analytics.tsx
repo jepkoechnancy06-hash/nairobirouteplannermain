@@ -9,23 +9,22 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { 
-  Brain, 
-  TrendingUp, 
-  Route, 
-  Users, 
-  Store, 
-  Fuel, 
-  Clock, 
-  Target, 
+import { PageHeader } from "@/components/page-header";
+import {
+  Brain,
+  TrendingUp,
+  Route,
+  Users,
+  Store,
+  Target,
   BarChart3,
   Sparkles,
   RefreshCw,
   FileText,
   Lightbulb,
-  AlertTriangle,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from "lucide-react";
 
 interface DashboardData {
@@ -689,22 +688,16 @@ export default function AnalyticsPage() {
   });
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Brain className="h-8 w-8" />
-            AI Analytics Portal
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Powered by advanced AI for route optimization, demand forecasting, and performance insights
-          </p>
-        </div>
+    <div className="flex flex-col gap-6 p-6">
+      <PageHeader
+        title="AI Analytics Portal"
+        description="Powered by advanced AI for route optimization, demand forecasting, and performance insights"
+      >
         <Badge variant="secondary" className="gap-1">
           <Sparkles className="h-3 w-3" />
           AI Powered
         </Badge>
-      </div>
+      </PageHeader>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

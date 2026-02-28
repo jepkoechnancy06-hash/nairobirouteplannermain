@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchList } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import {
-  Plus, Search, AlertTriangle, MoreVertical,
-  Pencil, Trash2, Building2, Phone, Mail, Users
+  Plus, Search, AlertTriangle, MoreVertical, Loader2,
+  Pencil, Trash2, Building2, Phone, Mail, Users, TrendingUp
 } from "lucide-react";
 
 export default function SuppliersPage() {
@@ -135,11 +137,10 @@ export default function SuppliersPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Supplier Management</h1>
-          <p className="text-muted-foreground">Manage your supplier registry and track procurement</p>
-        </div>
+      <PageHeader
+        title="Supplier Management"
+        description="Manage your supplier registry and track procurement"
+      >
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingSupplier(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Add Supplier</Button>
@@ -161,14 +162,14 @@ export default function SuppliersPage() {
             />
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatMini label="Total Suppliers" value={stats.total} icon={Building2} />
-        <StatMini label="Active" value={stats.active} icon={Users} />
-        <StatMini label="Total Spend" value={`KES ${stats.totalSpend.toLocaleString()}`} icon={Building2} />
-        <StatMini label="Pending Orders" value={stats.pendingOrders} icon={AlertTriangle} />
+        <StatCard title="Total Suppliers" value={stats.total} icon={Building2} />
+        <StatCard title="Active" value={stats.active} icon={Users} />
+        <StatCard title="Total Spend" value={`KES ${stats.totalSpend.toLocaleString()}`} icon={TrendingUp} />
+        <StatCard title="Pending Orders" value={stats.pendingOrders} icon={AlertTriangle} />
       </div>
 
       {/* Search */}
@@ -201,7 +202,7 @@ export default function SuppliersPage() {
                 <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No suppliers found</TableCell></TableRow>
               ) : (
                 filtered.map((s: any) => (
-                  <TableRow key={s.id}>
+                  <TableRow key={s.id} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">{s.name}</TableCell>
                     <TableCell>{s.contactPerson || "—"}</TableCell>
                     <TableCell>
@@ -245,22 +246,6 @@ export default function SuppliersPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatMini({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -317,7 +302,14 @@ function SupplierForm({
         </Select>
       </div>
       <Button type="submit" disabled={isLoading || !form.name}>
-        {isLoading ? "Saving..." : initialData ? "Update Supplier" : "Create Supplier"}
+        {isLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Saving...
+          </>
+        ) : (
+          initialData ? "Update Supplier" : "Create Supplier"
+        )}
       </Button>
     </form>
   );

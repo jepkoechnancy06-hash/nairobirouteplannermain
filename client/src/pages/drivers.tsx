@@ -11,13 +11,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Truck, Plus, Phone, Search, MoreVertical, Pencil, Trash2, MapPin } from "lucide-react";
+import { Truck, Plus, Phone, Search, MoreVertical, Pencil, Trash2, MapPin, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Driver, InsertDriver } from "@shared/schema";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/page-header";
 
 const driverFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -135,7 +136,7 @@ export default function DriversPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-9 w-28" />
@@ -147,13 +148,8 @@ export default function DriversPage() {
   }
 
   return (
-    <div className="space-y-6 p-6" data-testid="drivers-page">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Drivers</h1>
-          <p className="text-muted-foreground">Manage your delivery fleet</p>
-        </div>
+    <div className="flex flex-col gap-6 p-6" data-testid="drivers-page">
+      <PageHeader title="Drivers" description="Manage your delivery fleet">
         {(isAdmin || isManager) && (
           <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
             setIsAddDialogOpen(open);
@@ -276,6 +272,9 @@ export default function DriversPage() {
                     disabled={createMutation.isPending || updateMutation.isPending}
                     data-testid="button-submit-driver"
                   >
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {createMutation.isPending || updateMutation.isPending ? "Saving..." : (editingDriver ? "Update" : "Add Driver")}
                   </Button>
                 </div>
@@ -284,7 +283,7 @@ export default function DriversPage() {
           </DialogContent>
         </Dialog>
         )}
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -339,7 +338,7 @@ export default function DriversPage() {
               </TableHeader>
               <TableBody>
                 {filteredDrivers.map((driver) => (
-                  <TableRow key={driver.id} data-testid={"driver-row-" + driver.id}>
+                  <TableRow key={driver.id} className="transition-colors hover:bg-muted/50" data-testid={"driver-row-" + driver.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className={`flex h-9 w-9 items-center justify-center rounded-full ${

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +31,14 @@ interface HealthResponse {
 }
 
 export default function AdminDashboard() {
-  const { data: usersList = [], isLoading } = useQuery({
+  const { data: usersList = [], isLoading } = useQuery<Record<string, unknown>[]>({
     queryKey: ["/api/admin/users"],
-    queryFn: () => fetchList("/api/admin/users"),
+    queryFn: () => fetchList<Record<string, unknown>>("/api/admin/users"),
   });
 
   const stats = {
     total: usersList.length,
-    admins: usersList.filter((u: { role?: string }) => u.role === "admin").length,
+    admins: usersList.filter((u) => u.role === "admin").length,
   };
 
   const { data: health, isLoading: healthLoading } = useQuery<HealthResponse>({
@@ -54,11 +55,13 @@ export default function AdminDashboard() {
   const dbConnected = dbCheck?.status === "healthy";
 
   return (
-    <AdminLayout
-      title="Administration Overview"
-      description="Manage your system, users, and configuration"
-    >
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+    <AdminLayout>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Administration Overview"
+          description="Manage your system, users, and configuration"
+        />
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Link href="/admin/users">
           <Card className="transition-colors hover:border-primary/50 hover:bg-muted/30 cursor-pointer h-full">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -119,10 +122,10 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </Link>
-      </div>
+        </div>
 
-      {/* Database connection status */}
-      <Card className={!dbConnected ? "border-amber-500/50 bg-amber-500/5" : ""}>
+        {/* Database connection status */}
+        <Card className={!dbConnected ? "border-amber-500/50 bg-amber-500/5" : ""}>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
             <HardDrive className="h-5 w-5" />
@@ -171,9 +174,9 @@ export default function AdminDashboard() {
             </div>
           )}
         </CardContent>
-      </Card>
+        </Card>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -227,6 +230,7 @@ export default function AdminDashboard() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </AdminLayout>
   );

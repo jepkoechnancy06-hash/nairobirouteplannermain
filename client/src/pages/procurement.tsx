@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchList } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import {
   Plus, ShoppingCart, Search, AlertTriangle,
-  CheckCircle2, Clock, Package, DollarSign
+  CheckCircle2, Clock, DollarSign
 } from "lucide-react";
 
 export default function ProcurementPage() {
@@ -117,11 +119,10 @@ export default function ProcurementPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Procurement</h1>
-          <p className="text-muted-foreground">Create and track purchase orders from suppliers</p>
-        </div>
+      <PageHeader
+        title="Procurement"
+        description="Create and track purchase orders from suppliers"
+      >
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> New Purchase Order</Button>
@@ -137,14 +138,14 @@ export default function ProcurementPage() {
             />
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatMini label="Total Orders" value={stats.total} icon={ShoppingCart} />
-        <StatMini label="Pending" value={stats.pending} icon={Clock} />
-        <StatMini label="Received" value={stats.received} icon={CheckCircle2} />
-        <StatMini label="Total Cost" value={`KES ${stats.totalCost.toLocaleString()}`} icon={DollarSign} />
+        <StatCard title="Total Orders" value={stats.total} icon={ShoppingCart} />
+        <StatCard title="Pending" value={stats.pending} icon={Clock} />
+        <StatCard title="Received" value={stats.received} icon={CheckCircle2} />
+        <StatCard title="Total Cost" value={`KES ${stats.totalCost.toLocaleString()}`} icon={DollarSign} />
       </div>
 
       {/* Filters */}
@@ -183,12 +184,12 @@ export default function ProcurementPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No procurement orders found</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No procurement orders found</TableCell></TableRow>
               ) : (
                 filtered.map((pr: any) => (
-                  <TableRow key={pr.id}>
+                  <TableRow key={pr.id} className="transition-colors hover:bg-muted/50">
                     <TableCell><Badge variant="outline">{getProductSku(pr.productId)}</Badge></TableCell>
                     <TableCell className="font-medium">{getProductName(pr.productId)}</TableCell>
                     <TableCell>{getSupplierName(pr.supplierId)}</TableCell>
@@ -218,22 +219,6 @@ export default function ProcurementPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatMini({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

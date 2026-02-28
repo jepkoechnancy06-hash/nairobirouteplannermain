@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,7 +145,8 @@ export default function SettingsPage() {
 
   if (isError) {
     return (
-      <AdminLayout title="Settings">
+      <AdminLayout>
+        <div className="flex flex-col gap-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -152,26 +154,18 @@ export default function SettingsPage() {
             Failed to load settings. Make sure you have admin access.
           </AlertDescription>
         </Alert>
+        </div>
       </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout
-      title="Settings"
-      description="Configure environment variables and API keys"
-    >
-      <div className="space-y-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          {dirty && (
-            <Alert className="flex-1">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Unsaved changes</AlertTitle>
-              <AlertDescription>
-                You have modified settings. Click &quot;Save Changes&quot; to apply.
-              </AlertDescription>
-            </Alert>
-          )}
+    <AdminLayout>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="Settings"
+          description="Configure environment variables and API keys"
+        >
           <Button
             onClick={() => saveMutation.mutate(values)}
             disabled={!dirty || saveMutation.isPending}
@@ -180,7 +174,17 @@ export default function SettingsPage() {
             <Save className="mr-2 h-4 w-4" />
             {saveMutation.isPending ? "Saving..." : "Save Changes"}
           </Button>
-        </div>
+        </PageHeader>
+
+        {dirty && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Unsaved changes</AlertTitle>
+            <AlertDescription>
+              You have modified settings. Click &quot;Save Changes&quot; to apply.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {isLoading ? (
           <div className="space-y-6">

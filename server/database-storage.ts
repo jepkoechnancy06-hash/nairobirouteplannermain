@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, ilike, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import {
   shops, drivers, routes, targets,
@@ -21,12 +21,24 @@ import {
   type Parcel, type InsertParcel,
   type Payment, type InsertPayment,
 } from "@shared/schema";
-import type { IStorage } from "./storage";
+import type { IStorage, PaginationParams } from "./storage";
 
 export class DatabaseStorage implements IStorage {
   // ============ SHOPS ============
-  async getAllShops(): Promise<Shop[]> {
-    return db.select().from(shops);
+  async getAllShops(opts?: PaginationParams & { search?: string; status?: string }): Promise<Shop[]> {
+    const conditions: SQL[] = [];
+    if (opts?.search) {
+      conditions.push(or(
+        ilike(shops.name, `%${opts.search}%`),
+        ilike(shops.address, `%${opts.search}%`)
+      )!);
+    }
+    if (opts?.status) conditions.push(eq(shops.status, opts.status));
+
+    let query = db.select().from(shops);
+    if (conditions.length) query = query.where(conditions.length === 1 ? conditions[0] : sql`${conditions[0]} AND ${conditions[1]}`) as typeof query;
+    if (opts?.limit) query = query.limit(opts.limit).offset(opts.offset ?? 0) as typeof query;
+    return query;
   }
   async getShop(id: string): Promise<Shop | undefined> {
     const [row] = await db.select().from(shops).where(eq(shops.id, id)).limit(1);

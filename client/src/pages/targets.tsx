@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Target as TargetType, InsertTarget, Driver } from "@shared/schema";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/page-header";
 
 const targetFormSchema = z.object({
   driverId: z.string().min(1, "Select a driver"),
@@ -144,7 +145,7 @@ export default function TargetsPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-9 w-28" />
@@ -160,13 +161,12 @@ export default function TargetsPage() {
   }
 
   return (
-    <div className="space-y-6 p-6" data-testid="targets-page">
+    <div className="flex flex-col gap-6 p-6" data-testid="targets-page">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Targets</h1>
-          <p className="text-muted-foreground">Set and track driver performance targets</p>
-        </div>
+      <PageHeader
+        title="Targets"
+        description="Set and track driver performance targets"
+      >
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
@@ -363,7 +363,7 @@ export default function TargetsPage() {
             </Form>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -412,7 +412,7 @@ export default function TargetsPage() {
             const avgProgress = Math.round((shopProgress + deliveryProgress) / 2);
             
             return (
-              <Card key={target.id} data-testid={`target-card-${target.id}`}>
+              <Card key={target.id} data-testid={`target-card-${target.id}`} className="transition-colors hover:border-primary/50 hover:shadow-md">
                 <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
                   <div className="flex items-center gap-3">
                     <div className={`flex h-10 w-10 items-center justify-center rounded-full ${

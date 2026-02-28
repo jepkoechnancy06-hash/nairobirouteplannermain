@@ -11,9 +11,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import {
   Truck, Package, Clock, CheckCircle2, AlertCircle,
-  Play, Flag, Search, Plus
+  Flag, Search, Plus
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
@@ -113,7 +115,7 @@ export default function DispatchPage() {
     },
   });
 
-  const getDriverName = (id: string) => drivers.find((d: any) => d.id === id)?.name || id;
+  const getDriverName = (id: string) => (drivers as any[]).find((d) => d.id === id)?.name || id;
 
   const filtered = dispatches.filter((d: any) =>
     d.dispatchNumber?.toLowerCase().includes(search.toLowerCase()) ||
@@ -143,13 +145,10 @@ export default function DispatchPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Dispatch & Delivery</h1>
-          <p className="text-muted-foreground">
-            Manage packing (4 PM–8 AM), flag-off, and delivery tracking
-          </p>
-        </div>
+      <PageHeader
+        title="Dispatch & Delivery"
+        description="Manage packing (4 PM–8 AM), flag-off, and delivery tracking"
+      >
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -167,7 +166,7 @@ export default function DispatchPage() {
             />
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Timeline Banner */}
       <Card className="bg-gradient-to-r from-amber-50 to-green-50 dark:from-amber-950 dark:to-green-950">
@@ -188,10 +187,10 @@ export default function DispatchPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Packing" value={stats.packing} icon={Package} color="text-amber-600" />
-        <StatCard label="In Transit" value={stats.inTransit} icon={Truck} color="text-blue-600" />
-        <StatCard label="Completed" value={stats.completed} icon={CheckCircle2} color="text-green-600" />
-        <StatCard label="Total Parcels" value={stats.totalParcels} icon={Package} color="text-purple-600" />
+        <StatCard title="Packing" value={stats.packing} icon={Package} iconColor="text-amber-600" />
+        <StatCard title="In Transit" value={stats.inTransit} icon={Truck} iconColor="text-blue-600" />
+        <StatCard title="Completed" value={stats.completed} icon={CheckCircle2} iconColor="text-green-600" />
+        <StatCard title="Total Parcels" value={stats.totalParcels} icon={Package} iconColor="text-purple-600" />
       </div>
 
       {/* Filter */}
@@ -225,18 +224,18 @@ export default function DispatchPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50">
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell>
                 </TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50">
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No dispatches found</TableCell>
                 </TableRow>
               ) : (
                 filtered.map((d: any) => {
                   const nextStatus = getNextDispatchStatus(d.status);
                   return (
-                    <TableRow key={d.id} className="cursor-pointer" onClick={() => setSelectedDispatch(d)}>
+                    <TableRow key={d.id} className="cursor-pointer transition-colors hover:bg-muted/50" onClick={() => setSelectedDispatch(d)}>
                       <TableCell className="font-medium">{d.dispatchNumber}</TableCell>
                       <TableCell>{getDriverName(d.driverId)}</TableCell>
                       <TableCell>{d.date}</TableCell>
@@ -291,7 +290,7 @@ export default function DispatchPage() {
               </TableHeader>
               <TableBody>
                 {parcels.length === 0 ? (
-                  <TableRow>
+                  <TableRow className="transition-colors hover:bg-muted/50">
                     <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                       No parcels yet
                     </TableCell>
@@ -300,7 +299,7 @@ export default function DispatchPage() {
                   parcels.map((p: any) => {
                     const nextParcelStatus = getNextParcelStatus(p.status);
                     return (
-                      <TableRow key={p.id}>
+                      <TableRow key={p.id} className="transition-colors hover:bg-muted/50">
                         <TableCell className="font-medium">{p.parcelNumber}</TableCell>
                         <TableCell>{p.orderId?.slice(0, 8)}</TableCell>
                         <TableCell>{p.shopId?.slice(0, 8)}</TableCell>
@@ -361,22 +360,6 @@ function TimelineStep({ icon: Icon, label, time, active }: { icon: React.Element
       <span className="text-xs font-medium">{label}</span>
       {time && <span className="text-xs text-muted-foreground">{time}</span>}
     </div>
-  );
-}
-
-function StatCard({ label, value, icon: Icon, color }: { label: string; value: number; icon: React.ElementType; color: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className={`h-4 w-4 ${color}`} />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 

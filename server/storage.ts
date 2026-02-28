@@ -17,9 +17,14 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 
+export interface PaginationParams {
+  limit?: number;
+  offset?: number;
+}
+
 export interface IStorage {
   // Shops
-  getAllShops(): Promise<Shop[]>;
+  getAllShops(opts?: PaginationParams & { search?: string; status?: string }): Promise<Shop[]>;
   getShop(id: string): Promise<Shop | undefined>;
   createShop(shop: InsertShop): Promise<Shop>;
   updateShop(id: string, shop: Partial<InsertShop>): Promise<Shop | undefined>;
@@ -364,8 +369,19 @@ export class MemStorage implements IStorage {
   }
 
   // Shops
-  async getAllShops(): Promise<Shop[]> {
-    return Array.from(this.shops.values());
+  async getAllShops(opts?: PaginationParams & { search?: string; status?: string }): Promise<Shop[]> {
+    let result = Array.from(this.shops.values());
+    if (opts?.search) {
+      const s = opts.search.toLowerCase();
+      result = result.filter(shop =>
+        shop.name.toLowerCase().includes(s) ||
+        (shop.address && shop.address.toLowerCase().includes(s))
+      );
+    }
+    if (opts?.status) result = result.filter(shop => shop.status === opts.status);
+    if (opts?.offset) result = result.slice(opts.offset);
+    if (opts?.limit) result = result.slice(0, opts.limit);
+    return result;
   }
 
   async getShop(id: string): Promise<Shop | undefined> {

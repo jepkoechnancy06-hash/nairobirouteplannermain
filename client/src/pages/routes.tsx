@@ -13,6 +13,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Route as RouteIcon, Plus, Clock, MapPin, Truck, Wand2, Search, MoreVertical, Pencil, Trash2, Play, CheckCircle } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -176,7 +177,7 @@ export default function RoutesPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="flex flex-col gap-6 p-6">
         <div className="flex items-center justify-between">
           <Skeleton className="h-8 w-32" />
           <Skeleton className="h-9 w-32" />
@@ -192,13 +193,8 @@ export default function RoutesPage() {
   }
 
   return (
-    <div className="space-y-6 p-6" data-testid="routes-page">
-      {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Routes</h1>
-          <p className="text-muted-foreground">Plan and manage delivery routes</p>
-        </div>
+    <div className="flex flex-col gap-6 p-6" data-testid="routes-page">
+      <PageHeader title="Routes" description="Plan and manage delivery routes">
         <Dialog open={isAddDialogOpen} onOpenChange={(open) => {
           setIsAddDialogOpen(open);
           if (!open) {
@@ -387,7 +383,7 @@ export default function RoutesPage() {
             </div>
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Search */}
       <div className="relative max-w-sm">
@@ -435,7 +431,7 @@ export default function RoutesPage() {
             const driver = drivers.find(d => d.id === route.driverId);
             const routeShops = getRouteShops(route);
             return (
-              <Card key={route.id} data-testid={`route-card-${route.id}`}>
+              <Card key={route.id} data-testid={`route-card-${route.id}`} className="transition-shadow hover:shadow-md">
                 <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
                   <div className="flex-1 min-w-0">
                     <CardTitle className="text-base truncate">{route.name}</CardTitle>

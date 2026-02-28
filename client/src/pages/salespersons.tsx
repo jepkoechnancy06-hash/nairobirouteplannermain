@@ -13,7 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Plus, Search, AlertTriangle, MoreVertical, Pencil, Trash2, Phone, Mail } from "lucide-react";
+import { Plus, Search, AlertTriangle, MoreVertical, Pencil, Trash2, Phone, Mail, Loader2 } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 function SalespersonForm({ initialData, onSubmit, isLoading }: { initialData?: any; onSubmit: (data: Record<string, unknown>) => void; isLoading: boolean; }) {
   const [form, setForm] = useState({
@@ -47,7 +48,12 @@ function SalespersonForm({ initialData, onSubmit, isLoading }: { initialData?: a
         </Select>
       </div>
       <Button type="submit" disabled={isLoading || !form.name || !form.phone}>
-        {isLoading ? "Saving..." : initialData ? "Update Salesperson" : "Add Salesperson"}
+        {isLoading ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving...
+          </>
+        ) : initialData ? "Update Salesperson" : "Add Salesperson"}
       </Button>
     </form>
   );
@@ -154,11 +160,7 @@ export default function SalespersonsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Salespersons</h1>
-          <p className="text-muted-foreground">Manage your sales team members</p>
-        </div>
+      <PageHeader title="Salespersons" description="Manage your sales team members">
         {(isAdmin || isManager) && (
           <Dialog open={dialogOpen} onOpenChange={open => { setDialogOpen(open); if (!open) setEditingSalesperson(null); }}>
             <DialogTrigger asChild>
@@ -182,7 +184,7 @@ export default function SalespersonsPage() {
             </DialogContent>
           </Dialog>
         )}
-      </div>
+      </PageHeader>
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -208,12 +210,12 @@ export default function SalespersonsPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No salespersons found</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No salespersons found</TableCell></TableRow>
               ) : (
                 filtered.map((sp: any) => (
-                  <TableRow key={sp.id}>
+                  <TableRow key={sp.id} className="transition-colors hover:bg-muted/50">
                     <TableCell className="font-medium">{sp.name}</TableCell>
                     <TableCell>
                       <span className="flex items-center gap-1"><Phone className="h-3 w-3" /> {sp.phone}</span>

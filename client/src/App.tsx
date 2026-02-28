@@ -11,6 +11,11 @@ import { AdminRouteGuard, ManagerRouteGuard } from "@/components/admin-route-gua
 import { Skeleton } from "@/components/ui/skeleton";
 import { lazy, Suspense } from "react";
 import { CookieConsentBanner } from "@/components/cookie-consent";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { CommandPalette } from "@/components/command-palette";
+import { PageBreadcrumb } from "@/components/page-breadcrumb";
+import { Separator } from "@/components/ui/separator";
+import { usePageTitle } from "@/hooks/use-page-title";
 
 // Eagerly loaded (always visible)
 import NotFound from "@/pages/not-found";
@@ -96,14 +101,25 @@ function AuthenticatedApp() {
 
   return (
     <SidebarProvider style={sidebarStyle as React.CSSProperties}>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
       <div className="flex h-screen w-full">
         <AppSidebar />
         <SidebarInset className="flex flex-1 flex-col overflow-hidden">
-          <header className="flex h-12 shrink-0 items-center justify-between gap-2 border-b px-4">
-            <SidebarTrigger data-testid="button-sidebar-toggle" />
-            <ThemeToggle />
+          <header className="flex h-14 shrink-0 items-center gap-3 border-b px-4" role="banner">
+            <SidebarTrigger data-testid="button-sidebar-toggle" aria-label="Toggle sidebar" />
+            <Separator orientation="vertical" className="h-5" />
+            <PageBreadcrumb />
+            <div className="ml-auto flex items-center gap-2">
+              <CommandPalette />
+              <ThemeToggle />
+            </div>
           </header>
-          <main className="flex-1 overflow-auto">
+          <main id="main-content" className="flex-1 overflow-auto" role="main">
             <Suspense fallback={<LoadingScreen />}>
               <AuthenticatedRouter />
             </Suspense>
@@ -140,6 +156,7 @@ function UnauthenticatedRouter() {
 
 function AppContent() {
   const { isAuthenticated, isLoading } = useAuth();
+  usePageTitle();
 
   if (isLoading) {
     return <LoadingScreen />;
@@ -154,13 +171,15 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AppContent />
-        <CookieConsentBanner />
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <AppContent />
+          <CookieConsentBanner />
+          <Toaster />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

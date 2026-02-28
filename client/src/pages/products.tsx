@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchList } from "@/lib/queryClient";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,7 +18,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Plus, Package, Search, AlertTriangle, MoreVertical,
-  Pencil, Trash2, Tag, Layers
+  Pencil, Trash2, Tag, Layers, Loader2
 } from "lucide-react";
 
 const productCategories = [
@@ -149,11 +151,10 @@ export default function ProductsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Products / SKU Management</h1>
-          <p className="text-muted-foreground">Manage your product catalog and SKUs</p>
-        </div>
+      <PageHeader
+        title="Products / SKU Management"
+        description="Manage your product catalog and SKUs"
+      >
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setEditingProduct(null); }}>
           <DialogTrigger asChild>
             <Button><Plus className="h-4 w-4 mr-2" /> Add Product</Button>
@@ -176,14 +177,14 @@ export default function ProductsPage() {
             />
           </DialogContent>
         </Dialog>
-      </div>
+      </PageHeader>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatMini label="Total Products" value={stats.total} icon={Package} />
-        <StatMini label="Active" value={stats.active} icon={Tag} />
-        <StatMini label="Low Stock" value={stats.lowStock} icon={AlertTriangle} />
-        <StatMini label="Categories" value={stats.categories} icon={Layers} />
+        <StatCard title="Total Products" value={stats.total} icon={Package} />
+        <StatCard title="Active" value={stats.active} icon={Tag} />
+        <StatCard title="Low Stock" value={stats.lowStock} icon={AlertTriangle} iconColor="text-red-500" />
+        <StatCard title="Categories" value={stats.categories} icon={Layers} />
       </div>
 
       {/* Search */}
@@ -212,15 +213,15 @@ export default function ProductsPage() {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
               ) : filtered.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No products found</TableCell></TableRow>
+                <TableRow className="transition-colors hover:bg-muted/50"><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">No products found</TableCell></TableRow>
               ) : (
                 filtered.map((p: any) => {
                   const stock = getStock(p.id);
                   const lowStock = stock <= (p.reorderLevel || 10);
                   return (
-                    <TableRow key={p.id}>
+                    <TableRow key={p.id} className="transition-colors hover:bg-muted/50">
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell><Badge variant="outline">{p.sku}</Badge></TableCell>
                       <TableCell className="capitalize">{p.category?.replace(/_/g, " ")}</TableCell>
@@ -261,22 +262,6 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
     </div>
-  );
-}
-
-function StatMini({ label, value, icon: Icon }: { label: string; value: string | number; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center">
-          <Icon className="h-4 w-4 text-primary" />
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
 
@@ -394,6 +379,7 @@ function ProductForm({
         <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Optional product description" />
       </div>
       <Button type="submit" disabled={isLoading || !form.name || !form.sku}>
+        {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {isLoading ? "Saving..." : initialData ? "Update Product" : "Create Product"}
       </Button>
     </form>

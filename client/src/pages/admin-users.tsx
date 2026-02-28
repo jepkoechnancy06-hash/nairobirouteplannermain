@@ -2,6 +2,8 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchList, apiRequest } from "@/lib/queryClient";
 import { AdminLayout } from "@/components/admin/admin-layout";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,9 +61,9 @@ export default function AdminUsersPage() {
   const [editUser, setEditUser] = useState<Record<string, unknown> | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; email: string } | null>(null);
 
-  const { data: usersList = [], isLoading, isError } = useQuery({
+  const { data: usersList = [], isLoading, isError } = useQuery<Record<string, unknown>[]>({
     queryKey: ["/api/admin/users"],
-    queryFn: () => fetchList("/api/admin/users"),
+    queryFn: () => fetchList<Record<string, unknown>>("/api/admin/users"),
   });
 
   const createMutation = useMutation({
@@ -126,27 +128,29 @@ export default function AdminUsersPage() {
 
   const filtered = useMemo(
     () =>
-      usersList.filter(
-        (u: { email?: string; firstName?: string; lastName?: string }) =>
-          u.email?.toLowerCase().includes(search.toLowerCase()) ||
-          u.firstName?.toLowerCase().includes(search.toLowerCase()) ||
-          u.lastName?.toLowerCase().includes(search.toLowerCase())
-      ),
+      usersList.filter((u) => {
+        const email = String(u.email ?? "").toLowerCase();
+        const first = String(u.firstName ?? "").toLowerCase();
+        const last = String(u.lastName ?? "").toLowerCase();
+        const q = search.toLowerCase();
+        return email.includes(q) || first.includes(q) || last.includes(q);
+      }),
     [usersList, search]
   );
 
   const stats = useMemo(
     () => ({
       total: usersList.length,
-      admins: usersList.filter((u: { role?: string }) => u.role === "admin").length,
-      users: usersList.filter((u: { role?: string }) => u.role !== "admin").length,
+      admins: usersList.filter((u) => u.role === "admin").length,
+      users: usersList.filter((u) => u.role !== "admin").length,
     }),
     [usersList]
   );
 
   if (isError) {
     return (
-      <AdminLayout title="User Management">
+      <AdminLayout>
+        <div className="flex flex-col gap-6">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Error</AlertTitle>
@@ -154,64 +158,18 @@ export default function AdminUsersPage() {
             Failed to load users. Make sure you have admin access.
           </AlertDescription>
         </Alert>
+        </div>
       </AdminLayout>
     );
   }
 
   return (
-    <AdminLayout
-      title="User Management"
-      description="Create and manage user accounts with role-based access"
-    >
-      <div className="space-y-6">
-        {/* Stats */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                <Users className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.total}</p>
-                <p className="text-sm text-muted-foreground">Total Users</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10">
-                <Shield className="h-6 w-6 text-amber-600 dark:text-amber-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.admins}</p>
-                <p className="text-sm text-muted-foreground">Admins</p>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="flex items-center gap-4 p-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10">
-                <User className="h-6 w-6 text-emerald-600 dark:text-emerald-500" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.users}</p>
-                <p className="text-sm text-muted-foreground">Regular Users</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Toolbar */}
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative max-w-sm flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by email or name..."
-              className="pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+    <AdminLayout>
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title="User Management"
+          description="Create and manage user accounts with role-based access"
+        >
           {isManager && (
             <Dialog open={createOpen} onOpenChange={setCreateOpen}>
               <DialogTrigger asChild>
@@ -231,6 +189,40 @@ export default function AdminUsersPage() {
               </DialogContent>
             </Dialog>
           )}
+        </PageHeader>
+
+        {/* Stats */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            title="Total Users"
+            value={stats.total}
+            icon={Users}
+          />
+          <StatCard
+            title="Admins"
+            value={stats.admins}
+            icon={Shield}
+            iconColor="text-amber-600 dark:text-amber-500"
+          />
+          <StatCard
+            title="Regular Users"
+            value={stats.users}
+            icon={User}
+            iconColor="text-emerald-600 dark:text-emerald-500"
+          />
+        </div>
+
+        {/* Toolbar */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative max-w-sm flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by email or name..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
         </div>
 
         {/* Table */}
@@ -248,7 +240,7 @@ export default function AdminUsersPage() {
               <TableBody>
                 {isLoading ? (
                   Array.from({ length: 5 }).map((_, i) => (
-                    <TableRow key={i}>
+                    <TableRow key={i} className="transition-colors hover:bg-muted/50">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Skeleton className="h-9 w-9 rounded-full" />
@@ -264,7 +256,7 @@ export default function AdminUsersPage() {
                     </TableRow>
                   ))
                 ) : filtered.length === 0 ? (
-                  <TableRow>
+                  <TableRow className="transition-colors hover:bg-muted/50">
                     <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
                       No users found. {search ? "Try a different search." : "Create your first user."}
                     </TableCell>
@@ -279,7 +271,7 @@ export default function AdminUsersPage() {
                     const isSelf = u.id === currentUser?.id;
 
                     return (
-                      <TableRow key={String(u.id)}>
+                      <TableRow key={String(u.id)} className="transition-colors hover:bg-muted/50">
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <Avatar className="h-9 w-9">

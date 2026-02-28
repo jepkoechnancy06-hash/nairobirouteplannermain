@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PageHeader } from "@/components/page-header";
 import {
   Package, ShoppingCart, DollarSign, TrendingUp,
   ArrowUpRight, ArrowDownRight, BarChart3, Users,
@@ -112,18 +113,17 @@ export default function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Daily Reports</h1>
-          <p className="text-muted-foreground">Stores, Procurement, Sales & Finance reports</p>
-        </div>
+      <PageHeader
+        title="Daily Reports"
+        description="Stores, Procurement, Sales & Finance reports"
+      >
         <Input
           type="date"
           value={dateFilter}
           onChange={(e) => setDateFilter(e.target.value)}
           className="w-[180px]"
         />
-      </div>
+      </PageHeader>
 
       <Tabs defaultValue="stores" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
