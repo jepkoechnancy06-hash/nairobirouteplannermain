@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { AdminLayout } from "@/components/admin/admin-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetchList } from "@/lib/queryClient";
 import {
@@ -13,7 +14,20 @@ import {
   ArrowRight,
   Activity,
   CheckCircle2,
+  AlertTriangle,
+  HardDrive,
 } from "lucide-react";
+
+interface HealthCheck {
+  name: string;
+  status: "healthy" | "degraded" | "unhealthy";
+  message: string;
+}
+
+interface HealthResponse {
+  status: string;
+  checks: HealthCheck[];
+}
 
 export default function AdminDashboard() {
   const { data: usersList = [], isLoading } = useQuery({
@@ -25,6 +39,19 @@ export default function AdminDashboard() {
     total: usersList.length,
     admins: usersList.filter((u: { role?: string }) => u.role === "admin").length,
   };
+
+  const { data: health, isLoading: healthLoading } = useQuery<HealthResponse>({
+    queryKey: ["/health"],
+    queryFn: async () => {
+      const res = await fetch("/health", { credentials: "include" });
+      if (!res.ok) throw new Error("Health check failed");
+      return res.json();
+    },
+    retry: false,
+  });
+
+  const dbCheck = health?.checks?.find((c) => c.name === "database");
+  const dbConnected = dbCheck?.status === "healthy";
 
   return (
     <AdminLayout
@@ -93,6 +120,58 @@ export default function AdminDashboard() {
           </Card>
         </Link>
       </div>
+
+      {/* Database connection status */}
+      <Card className={!dbConnected ? "border-amber-500/50 bg-amber-500/5" : ""}>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HardDrive className="h-5 w-5" />
+            Database Connection
+          </CardTitle>
+          {!healthLoading && (
+            <Badge
+              variant={dbConnected ? "default" : "destructive"}
+              className={dbConnected ? "bg-emerald-600" : ""}
+            >
+              {dbConnected ? (
+                <>
+                  <CheckCircle2 className="mr-1 h-3 w-3" />
+                  Connected
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="mr-1 h-3 w-3" />
+                  In-memory
+                </>
+              )}
+            </Badge>
+          )}
+        </CardHeader>
+        <CardContent>
+          {healthLoading ? (
+            <Skeleton className="h-12 w-full" />
+          ) : dbConnected ? (
+            <p className="text-sm text-muted-foreground">
+              PostgreSQL is connected. Data persists across restarts.
+            </p>
+          ) : (
+            <div className="space-y-2 text-sm">
+              <p className="text-amber-600 dark:text-amber-500">
+                Using in-memory storage. Data will be lost when the server restarts.
+              </p>
+              <p className="text-muted-foreground">
+                Add <code className="rounded bg-muted px-1">DATABASE_URL</code> to{" "}
+                <code className="rounded bg-muted px-1">.env</code> or{" "}
+                <code className="rounded bg-muted px-1">.env.local</code>, then run{" "}
+                <code className="rounded bg-muted px-1">npm run drizzle:push</code>.
+              </p>
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/settings">Configure in Settings →</Link>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <Card>

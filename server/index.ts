@@ -1,3 +1,8 @@
+// Load environment variables first (before any other imports that use process.env)
+import dotenv from "dotenv";
+dotenv.config(); // .env
+dotenv.config({ path: ".env.local" }); // .env.local overrides (e.g. for DATABASE_URL)
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
@@ -6,8 +11,9 @@ import { initializeEmailTransporter } from "./email";
 import { validateEnvironment, printEnvironmentValidation } from "./env-validation";
 import { errorHandler, notFoundHandler, setupUnhandledRejectionHandler } from "./error-handling";
 
-const app = express();
-const httpServer = createServer(app);
+
+export const app = express();
+export const httpServer = createServer(app);
 
 declare module "http" {
   interface IncomingMessage {
@@ -52,7 +58,7 @@ app.use((req, res, next) => {
   next();
 });
 
-(async () => {
+export async function startServer() {
   // Setup global error handlers first
   setupUnhandledRejectionHandler();
 
@@ -72,29 +78,39 @@ app.use((req, res, next) => {
   // Centralized error handling middleware (must be last)
   app.use(errorHandler);
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // only setup vite when running in development (not in production or tests)
+  // this ensures the test suite doesn't spawn a file-watching dev server that
+  // can restart the app unexpectedly during automated runs.
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
-  } else {
+  } else if (process.env.NODE_ENV === "development") {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
-})();
+  // Avoid binding to actual network in test environment to prevent socket errors
+  if (process.env.NODE_ENV !== "test") {
+    // ALWAYS serve the app on the port specified in the environment variable PORT
+    // Other ports are firewalled. Default to 5000 if not specified.
+    // this serves both the API and the client.
+    // It is the only port that is not firewalled.
+    const port = parseInt(process.env.PORT || "5000", 10);
+    httpServer.listen(
+      {
+        port,
+        host: "0.0.0.0",
+        reusePort: true,
+      },
+      () => {
+        log(`serving on port ${port}`);
+      },
+    );
+  } else {
+    console.log("Skipping network listener in test mode");
+  }
+}
+
+// Only start the server if not in test environment
+if (process.env.NODE_ENV !== "test") {
+  startServer();
+}

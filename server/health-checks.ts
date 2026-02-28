@@ -6,7 +6,7 @@
  */
 
 import { Request, Response } from "express";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { storage } from "./storage";
 import { aiUsageMonitor } from "./ai/usage-monitor";
 import { settingsManager } from "./secure-settings";
@@ -69,9 +69,10 @@ class HealthMonitor {
     try {
       const { result, responseTime } = await this.measureResponseTime(
         async () => {
-          // Simple database connectivity test using pool query
-          const pool = (db as any).$client;
-          await pool.query('SELECT 1 as health_check');
+          if (!process.env.DATABASE_URL?.length) {
+            throw new Error("DATABASE_URL not configured");
+          }
+          await pool.query("SELECT 1 as health_check");
           return true;
         },
         "database"
